@@ -1,32 +1,33 @@
 # Spec 00 — Overview
 
-Source so far: the public Play Store listing of `ai.regainapp` (retrieved 2026-11-05). This will be refined with APK analysis in M1. Each feature gets its own spec file `Fxx-*.md`.
+Sources: the public Play Store listing (retrieved 2026-11-05) and static analysis of the original's APK v73.6.2089 (M1). See [README](README.md) for the source tags and the clean-room rule.
 
-| ID | Feature | Status | Spec file |
+| ID | Feature | Status | Spec |
 |---|---|---|---|
-| F1 | Focus timer: Timer / Stopwatch / Pomodoro, breaks, sounds, themes, tags | listing only | — |
-| F2 | Strict focus: block early exit, hide home screen | listing only | — |
-| F3 | App limits + Strict Mode lock + streaks | listing only | — |
-| F4 | Reels/Shorts blocking + **Arcify extras** (IG per-surface toggles, counters, block-after-N) | listing only | — |
-| F5 | YouTube Study Mode (channel allowlist) + **default lo-fi list** | listing only | — |
-| F6 | Browser Study Mode + website/adult blocker | listing only | — |
-| F7 | Block protection: uninstall, floating window, split screen | listing only | — |
-| F8 | Screen-time insights | listing only | — |
-| F9 | Schedule planner + streaks | listing only | — |
-| F10 | Nudges / motivation | listing only | — |
-| F11 | Multiplayer rooms, friends, leaderboards (deferred to M8) | listing only | — |
-| F12 | Onboarding, permissions, settings | listing only | — |
+| F1 | Focus timer: Timer / Stopwatch / Pomodoro, breaks, sounds, themes, tags | specified | [F01](F01-focus-timer.md) |
+| F2 | Strict focus: block early exit, hide home screen | specified | [F02](F02-strict-focus.md) |
+| F3 | App limits + strict lock + streaks | specified | [F03](F03-app-limits.md) |
+| F4 | Shorts/Reels blocking + **Arcify extras** (IG per-surface toggles, counters, block-after-N) | specified | [F04](F04-shorts-reels.md) |
+| F5 | YouTube Study Mode + **default lo-fi list** | specified | [F05](F05-youtube-study-mode.md) |
+| F6 | Browser Study Mode + website/adult blocker | specified | [F06](F06-browser-websites.md) |
+| F7 | Block protection: uninstall, floating window, split screen | specified | [F07](F07-block-protection.md) |
+| F8 | Screen-time insights + widgets | specified | [F08](F08-insights.md) |
+| F9 | Schedule planner + daily goal + streaks | specified | [F09](F09-schedule.md) |
+| F10 | Nudges / motivation | specified | [F10](F10-nudges.md) |
+| F11 | Multiplayer groups, leagues, reactions (deferred to M8) | specified (deferred) | [F11](F11-online.md) |
+| F12 | Onboarding, permissions, settings | specified | [F12](F12-onboarding-settings.md) |
+| F13 | *Candidate:* notification batching (in the original, not on its listing) | proposed, optional | [F10](F10-nudges.md) |
+| F14 | *Candidate:* study wake-up alarm (in the original) | proposed, optional | [F10](F10-nudges.md) |
 
-## Listing facts (paraphrased)
-- Positioned for students. The headline claims include reduced screen time, blocking distracting apps and studying with friends.
-- Accessibility Service is declared for detecting and intervening in user-selected app features, such as Shorts blocking. The listing states that this data stays on the device.
-- The data-safety section says no data is shared with third parties. Collected types are app activity, app info/performance and device IDs.
-- The original has in-app purchases. Arcify does not.
+Cross-cutting: [blocking engine](blocking-engine.md) · [permissions](permissions.md) · [data model](data-model.md) · [screen map](screen-map.md)
 
-## Arcify-only additions
-See the plan section "Arcify additions to F4/F5". Summary:
-- Instagram: separate block/allow toggles for reels opened from DMs, the Home feed, Search/Explore and the Reels tab.
-- Reel and Shorts counters per day for the Instagram app, the YouTube app, Chrome and Brave.
-- Optional "block after N reels/shorts today".
-- A default YouTube study allowlist of well-known lo-fi/study-music channels, editable and resettable.
-- Every list is customizable, with reset to defaults and JSON import/export.
+## Key findings from M1
+- The original is a **native Kotlin / Jetpack Compose** app, not Flutter or React Native.
+- **One accessibility service** performs all in-app blocking. A separate foreground service tracks usage.
+- **No VPN.** Website blocking reads the browser's address bar.
+- **Shorts/Reels detection is structural.** It recognises the vertical column of interaction controls that short-video players draw, plus a few YouTube element IDs. This is what Arcify's detector, counters and Instagram surface logic build on.
+- Home-screen hiding uses an optional **proxy launcher**. Uninstall friction uses **device admin** plus accessibility guards on installer, Play Store and system UI.
+- Many lists and rules are **fetched from the original's server**: websites, suggested channels, app categories, tuning values. Arcify ships **local, editable defaults** instead.
+
+## Dropped from the original
+Subscriptions and paywalls, coins and rewards, ads and attribution, analytics, sign-in, the companion character and its art, promotional widgets and passes.
