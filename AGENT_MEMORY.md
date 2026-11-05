@@ -4,15 +4,21 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M3 built and unit-tested (PR from `m3/blocking-engine`) → **M4 next**: content blocking (Shorts/Reels with IG surfaces, counters and block-after-N; YouTube study list; websites)
-- **Next step:** after the M3 PR merges, branch `m4/content-blocking`.
-  - **M4 really needs a phone:** record accessibility node trees from Instagram (DM / feed / Explore / Reels tab), YouTube (Shorts vs normal video, channel name) and Chrome/Brave (address bar). Write them as JSON test fixtures for the `:blocker` detectors.
-  - Extend the accessibility config: content-changed + scrolled events, `canRetrieveWindowContent=true`, report view IDs.
-- **Not yet verified on a device (M2 + M3):** nothing has been installed anywhere (no phone connected). When a device is available:
+- **Current milestone:** M4 built and unit-tested (PR from `m4/content-blocking`). Calibration on a phone is still pending (call it M4b) → then **M5** (block protection + proxy launcher + hard exit)
+- **Next step, when a phone is connected (M4b, calibration):**
+  1. Install the debug APK, grant Accessibility + Usage access.
+  2. Block → Shorts & Reels → turn on "Detector calibration".
+  3. Use Instagram (Home, Explore, Reels tab, a DM thread, a reel opened from a DM), YouTube (Shorts, a normal video, a channel page) and Chrome/Brave (instagram.com/reels, youtube.com/shorts).
+  4. Pull the recordings: `adb exec-out run-as app.arcify.debug tar c files/snapshots > snapshots.tar`. Review them (text is redacted, but descriptions remain) and turn the good ones into fixtures under `blocker/src/test/resources/fixtures/`.
+  5. Tune `DetectorDefaults` (control words, IG tab labels and DM markers, YouTube channel hints) and the Chrome/Brave `url_bar` IDs until the fixture tests pass. Then turn the recorder off.
+- **If no phone:** M5 can go ahead (proxy launcher, hard-exit phrase, uninstall/settings guards). Its guards also need device checks later.
+- **Decision pending from the user:** the adult-site list (F06). Fetching a third-party hosts list (e.g. StevenBlack, MIT) needs their OK; alternatively, import from a file they provide.
+- **Not yet verified on a device (M2 + M3 + M4):** nothing has been installed anywhere (no phone connected). When a device is available:
   1. Install `app-debug.apk`.
   2. Timer: start, pause and stop a Pomodoro, and check the notification actions.
   3. Block tab: grant Accessibility + Usage access, add a 15-minute limit, use the app until blocked, try "Lock for today".
   4. Strict Pomodoro: open a non-allowed app, check it's blocked; press Home, check the focus screen returns.
+  5. Chrome: open youtube.com/shorts/…, check the count appears in Block → Shorts & Reels; add a "Limit 3" rule and swipe past 3; add a blocked site.
 - **Blockers:** none. Decide F13 (notification batching) / F14 (wake alarm) scope with the user before M6.
 - **For M4:** record real Instagram/YouTube/Chrome/Brave accessibility node trees on a device (needed for IG surfaces + address-bar IDs; the original has no IG-surface logic to learn from).
 - **GitHub:** https://github.com/dhruv-solanki-2564/arcify (public, `main`)
@@ -43,7 +49,7 @@
   - [x] `:blocker` `NodeSnapshot` model + 2 tests
   - [x] `assembleDebug` OK → `app/build/outputs/apk/debug/app-debug.apk` (12.4 MB, id `app.arcify.debug`)
   - [ ] Installed and checked on a device
-- [ ] **M3 Blocking engine + App limits + Strict focus** (F2, F3): code done, awaiting PR merge + on-device check
+- [x] **M3 Blocking engine + App limits + Strict focus** (F2, F3): merged in PR #3 (27e1912); on-device check pending
   - [x] `:core`:
     - `LimitRules` (status, strict-only-tighter), `BlockPolicy` (allow / limit / strict / return-to-focus), `UsageAggregator` (activity events → foreground time).
     - Room v2 with an auto-migration: `app_limit`, `strict_allowed_app`.
@@ -58,7 +64,24 @@
   - [x] 38 unit tests passing; `assembleDebug` OK (12.8 MB)
   - [ ] Installed and checked on a device
   - Deferred to M5: proxy launcher (`ProxyHomeActivity`) + hard-exit phrase. Deferred to M6: limit streaks, top-3 suggestions
-- [ ] **M4 Content blocking** (F4 incl. Instagram per-surface toggles + reel/shorts counters + block-after-N, F5 default lo-fi study list, F6)
+- [ ] **M4 Content blocking** (F4 incl. Instagram per-surface toggles + reel/shorts counters + block-after-N, F5 default lo-fi study list, F6): code done, awaiting PR merge + calibration
+  - [x] `:core` rules:
+    - `ShortFormPolicy` (surface overrides, strictest-for-unknown, limit, strict-only-tighter), `ShortFormDeduper`.
+    - `UrlNormalizer`/`ShortFormUrls`/`WebsitePolicy`, `StudyChannelPolicy` (compact matching, input parsing), `StudyModes`.
+  - [x] Room v3: `short_form_rule`, `short_form_event`, `study_channel`, `website_rule`, `monitored_browser`. `ContentRepository` with one-time default seeding, strict locks, study switches, recorder flag.
+  - [x] `:blocker`:
+    - `NodeSnapshot` (+selected/editable/hint), `NodeSnapshots` capture.
+    - `ShortFormDetector`, `IgSurfaceTracker`, `BrowserUrlDetector`, `YouTubeChannelDetector`, `DetectorDefaults`.
+    - `ContentGuard`, `SnapshotJson`, debug `SnapshotRecorder`.
+    - The service reads content for monitored packages (300 ms throttle). Study modes keep YouTube/browsers usable in strict focus.
+  - [x] `:app`:
+    - Block hub with 4 sections.
+    - Shorts & Reels screen: counts, rules, IG surfaces, lock, recorder switch.
+    - YouTube study screen; Websites & browsers screen.
+    - Block screen: 4 new content reasons.
+  - [x] 74 unit tests passing; `assembleDebug` OK (12.7 MB), no warnings
+  - [ ] **Calibrate detectors with recordings from a real phone** (IG, YouTube, Snapchat, FB, Chrome/Brave IDs)
+  - [ ] Adult-site list (needs the user's OK to fetch a third-party list), live counter chip, editable detector labels, JSON export
 - [ ] **M5 Block protection** (F7)
 - [ ] **M6 Insights + Schedule + Nudges** (F8, F9, F10)
 - [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
@@ -82,6 +105,10 @@
 | 2026-11-05 | Only strict sessions block apps, and only during focus phases (breaks are free) | Matches the listing's wording; non-strict sessions stay a plain timer |
 | 2026-11-05 | `:blocker` depends on `:core` (api); UI hooks go through the `BlockScreenLauncher` interface bound in `:app` | Engine stays free of screens; detectors stay testable |
 | 2026-11-05 | `QUERY_ALL_PACKAGES` instead of `<queries>` | Needed to tell real app screens from dialogs for any app; sideloaded APK, so no Play policy issue |
+| 2026-11-05 | M4 built without a phone: rules and browser-URL detection are final; in-app detectors are own heuristics, marked unverified, with a debug recorder for calibration | User chose to start M4 before connecting a phone |
+| 2026-11-05 | Study modes apply during focus phases of any session (not only strict) and keep YouTube/browsers usable in strict focus | Matches the "during focus" wording in the listing |
+| 2026-11-05 | No rule = allowed but counted; YouTube channel detection fails open | Counting gives awareness by default; a detector miss must not lock users out of YouTube |
+| 2026-11-05 | Detector defaults and seed lists live in Kotlin (`ContentDefaults`, `DetectorDefaults`); JSON import/export later with Settings | Keeps M4 small and unit-testable; CLAUDE.md rule 7 export still owed |
 
 ## 4. Environment
 - Repo: `C:\Users\Admin\Projects\arcify` · RE workspace: `C:\Users\Admin\Projects\arcify-re\` (apk/, evidence/, ledger.md)
@@ -122,3 +149,4 @@
 - 2026-11-05 — Session 1 (cont.): per-DEX decompile done; traced the blocking mechanisms; wrote the full spec set (17 files); M1 complete, PR opened.
 - 2026-11-05 — Session 1 (cont.): PR #1 merged (f9b9914). M2 on `m2/skeleton-timer`: Gradle project, timer engine + 19 tests passing, foreground timer service, Compose UI; debug APK builds. Hit and worked around the wrapper SSL issue. Not yet tried on a device.
 - 2026-11-05 — Session 1 (cont.): PR #2 merged (925ae15). M3 on `m3/blocking-engine`: limit/block/usage rules, Room v2, accessibility service, block screen, Block tab; 38 tests passing; APK builds. Specs F02/F03 updated. Not yet tried on a device.
+- 2026-11-05 — Session 1 (cont.): PR #3 merged (27e1912). M4 on `m4/content-blocking`: short-form/website/study rules, Room v3, detectors + ContentGuard + recorder, Block hub with 3 new screens; 74 tests passing; APK builds. In-app detectors unverified (no phone yet).

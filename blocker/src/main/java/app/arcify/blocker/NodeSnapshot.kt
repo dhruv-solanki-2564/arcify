@@ -13,6 +13,9 @@ data class NodeSnapshot(
     val contentDescription: String? = null,
     val bounds: Bounds = Bounds.EMPTY,
     val visible: Boolean = true,
+    val selected: Boolean = false,
+    val editable: Boolean = false,
+    val hint: String? = null,
     val children: List<NodeSnapshot> = emptyList(),
 ) {
     /** Depth-first traversal including this node. */
