@@ -36,16 +36,15 @@ class ShortFormPolicyTest {
     }
 
     @Test
-    fun unknownSurfaceUsesTheStrictestInstagramRule() {
-        val rules = listOf(
+    fun unknownSurfaceFollowsTheInstagramWideRuleOnly() {
+        val surfaceOnly = listOf(
             ShortFormRule(Platform.INSTAGRAM, IgSurface.DM, ShortFormMode.ALLOW),
-            ShortFormRule(Platform.INSTAGRAM, IgSurface.FEED, ShortFormMode.LIMIT, dailyLimit = 10),
             ShortFormRule(Platform.INSTAGRAM, IgSurface.REELS_TAB, ShortFormMode.BLOCK),
         )
-        assertEquals(
-            ShortFormMode.BLOCK,
-            ShortFormPolicy.ruleFor(Platform.INSTAGRAM, IgSurface.UNKNOWN, rules)?.mode,
-        )
+        // Only the Reels tab was blocked: an unattributed reel is not blocked by that.
+        assertEquals(null, ShortFormPolicy.ruleFor(Platform.INSTAGRAM, IgSurface.UNKNOWN, surfaceOnly))
+        val withGeneral = surfaceOnly + ShortFormRule(Platform.INSTAGRAM, null, ShortFormMode.LIMIT, dailyLimit = 10)
+        assertEquals(ShortFormMode.LIMIT, ShortFormPolicy.ruleFor(Platform.INSTAGRAM, IgSurface.UNKNOWN, withGeneral)?.mode)
     }
 
     @Test

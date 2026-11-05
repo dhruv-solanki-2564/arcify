@@ -1,6 +1,5 @@
 package app.arcify.blocker
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -22,8 +21,8 @@ class AppCatalog @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     private val pm: PackageManager get() = context.packageManager
-    private val activityCache = ConcurrentHashMap<String, Boolean>()
     private val categoryCache = ConcurrentHashMap<String, AppCategory>()
+    private val launchableCache = ConcurrentHashMap<String, Boolean>()
 
     /** Apps with a launcher icon, except Arcify, sorted by name. */
     fun launchableApps(): List<InstalledApp> {
@@ -63,10 +62,18 @@ class AppCatalog @Inject constructor(
         }
     }
 
-    /** Every installed home-screen app. */
+    /**
+     * Real home-screen apps. Excludes Arcify itself (its optional home proxy) and system
+     * fallbacks: Settings registers a low-priority "FallbackHome" for boot, which must not make
+     * Settings count as a launcher.
+     */
     fun homePackages(): Set<String> {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        return pm.queryIntentActivities(intent, 0).map { it.activityInfo.packageName }.toSet()
+        return pm.queryIntentActivities(intent, 0)
+            .filter { it.priority >= 0 }
+            .map { it.activityInfo.packageName }
+            .filter { it != context.packageName && it != SETTINGS_PACKAGE }
+            .toSet()
     }
 
     /**
@@ -81,31 +88,39 @@ class AppCatalog @Inject constructor(
         context.getSystemService(InputMethodManager::class.java)
             ?.enabledInputMethodList
             ?.forEach { allowed += it.packageName }
+        allowed += CALL_AND_MESSAGE_PACKAGES
         return allowed
     }
 
     /**
-     * Whether a window event came from a real app screen rather than a dialog, toast, keyboard or
-     * system overlay. Only screens change which app counts as "open".
+     * Whether a package is an app the user opens from the launcher. Strict focus only blocks
+     * these; system screens without an icon (OEM settings pages, permission dialogs, helpers that
+     * allowed apps open) are never blocked.
      */
-    fun isActivity(packageName: String, className: String?): Boolean {
-        if (className.isNullOrEmpty()) return false
-        val key = "$packageName/$className"
-        return activityCache.getOrPut(key) {
-            try {
-                pm.getActivityInfo(ComponentName(packageName, className), 0)
-                true
-            } catch (_: PackageManager.NameNotFoundException) {
-                false
-            }
-        }
+    fun isUserFacing(packageName: String): Boolean = launchableCache.getOrPut(packageName) {
+        pm.getLaunchIntentForPackage(packageName) != null
     }
 
     private companion object {
+        const val SETTINGS_PACKAGE = "com.android.settings"
+
         val EMERGENCY_PACKAGES = setOf(
             "com.android.phone",
             "com.android.server.telecom",
             "com.android.emergency",
+        )
+
+        /** Common phone, in-call, contacts and messaging apps, so calls and texts always work even if not the default. */
+        val CALL_AND_MESSAGE_PACKAGES = setOf(
+            "com.google.android.dialer",
+            "com.android.dialer",
+            "com.android.incallui",
+            "com.google.android.contacts",
+            "com.android.contacts",
+            "com.google.android.apps.messaging",
+            "com.android.mms",
+            "com.samsung.android.dialer",
+            "com.samsung.android.messaging",
         )
     }
 }

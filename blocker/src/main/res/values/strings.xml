@@ -4,5 +4,22 @@
     <string name="device_admin_label">Arcify uninstall protection</string>
     <string name="device_admin_explanation">While this is on, Arcify can\'t be uninstalled until you switch it off here. Arcify never locks, wipes or manages your phone.</string>
     <string name="device_admin_disable_warning">Turning this off removes Arcify\'s uninstall protection.</string>
+
+    <!-- Banner shown when content inside an app is blocked -->
+    <string name="banner_platform_instagram">Instagram Reels</string>
+    <string name="banner_platform_youtube">YouTube Shorts</string>
+    <string name="banner_platform_snapchat">Snapchat Spotlight</string>
+    <string name="banner_platform_facebook">Facebook Reels</string>
+    <string name="banner_surface_reels_tab">the Reels tab</string>
+    <string name="banner_surface_feed">your feed</string>
+    <string name="banner_surface_explore">Search &amp; Explore</string>
+    <string name="banner_surface_dm">DMs</string>
+    <string name="banner_shortform">Arcify: %s are blocked</string>
+    <string name="banner_shortform_surface">Arcify: %1$s are blocked in %2$s</string>
+    <string name="banner_shortform_limit">Arcify: you\'ve reached today\'s limit of %1$d %2$s</string>
+    <string name="banner_dm_scroll">Arcify: only the reel sent in this chat is allowed</string>
+    <string name="banner_channel">Arcify: %s isn\'t on your study list</string>
+    <string name="banner_website">Arcify: %s is blocked</string>
+    <string name="banner_website_study">Arcify: study mode only opens your allowed sites</string>
     <string name="accessibility_service_description">Arcify uses this to see which app is open and, in apps you choose to control (like Instagram, YouTube and your browser), what is on screen. That lets it enforce your app limits, strict focus, Shorts and Reels rules, study modes and blocked websites. Everything is processed on your phone. Nothing is sent anywhere.</string>
 </resources>

@@ -37,6 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -90,7 +94,7 @@ fun FocusScreen(
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
     hardExitEnabled: Boolean = false,
-    onEmergencyExit: (String) -> Boolean = { false },
+    onEmergencyExit: (String, String) -> Boolean = { _, _ -> false },
 ) {
     Column(
         modifier = modifier
@@ -190,7 +194,7 @@ private fun RunningPanel(
     onResume: () -> Unit,
     onStop: () -> Unit,
     hardExitEnabled: Boolean,
-    onEmergencyExit: (String) -> Boolean,
+    onEmergencyExit: (String, String) -> Boolean,
 ) {
     var exiting by rememberSaveable { mutableStateOf(false) }
     val phase = stringResource(TimerText.phaseLabel(timer))
@@ -221,9 +225,13 @@ private fun RunningPanel(
     }
 }
 
-/** Asks for the exact phrase before ending a strict session (spec F02). */
+/**
+ * Asks for a fresh random code before ending a strict session (spec F02). The code is shown as
+ * plain, non-selectable text, so it has to be typed character by character.
+ */
 @Composable
-private fun EmergencyExitDialog(onConfirm: (String) -> Boolean, onDismiss: () -> Unit) {
+private fun EmergencyExitDialog(onConfirm: (input: String, code: String) -> Boolean, onDismiss: () -> Unit) {
+    val code by rememberSaveable { mutableStateOf(HardExit.newCode()) }
     var input by rememberSaveable { mutableStateOf("") }
     var wrong by remember { mutableStateOf(false) }
     AlertDialog(
@@ -231,15 +239,25 @@ private fun EmergencyExitDialog(onConfirm: (String) -> Boolean, onDismiss: () ->
         title = { Text(stringResource(R.string.hard_exit_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.hard_exit_dialog_body))
-                Text("\"${HardExit.PHRASE}\"", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.hard_exit_dialog_body, HardExit.CODE_LENGTH))
+                Text(
+                    code.chunked(4).joinToString(" "),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace),
+                )
                 OutlinedTextField(
                     value = input,
                     onValueChange = {
-                        input = it
+                        input = it.filterNot(Char::isWhitespace)
                         wrong = false
                     },
                     isError = wrong,
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrectEnabled = false,
+                        keyboardType = KeyboardType.Ascii,
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (wrong) Text(stringResource(R.string.hard_exit_wrong), color = MaterialTheme.colorScheme.error)
@@ -247,7 +265,7 @@ private fun EmergencyExitDialog(onConfirm: (String) -> Boolean, onDismiss: () ->
         },
         confirmButton = {
             TextButton(onClick = {
-                if (onConfirm(input)) onDismiss() else wrong = true
+                if (onConfirm(input, code)) onDismiss() else wrong = true
             }) { Text(stringResource(R.string.hard_exit_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },

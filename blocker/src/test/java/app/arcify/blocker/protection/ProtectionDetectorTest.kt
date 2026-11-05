@@ -54,6 +54,29 @@ class ProtectionDetectorTest {
         assertEquals(Threat.STORE, detect("com.android.vending", screen("Arcify", "Uninstall", "Open")))
     }
 
+    private fun detectInLauncher(root: NodeSnapshot) = ProtectionDetector.detect(
+        "com.android.launcher",
+        root,
+        appLabel = "Arcify",
+        serviceLabel = "Arcify blocker",
+        hints = hints,
+        launcherPackages = setOf("com.android.launcher"),
+    )
+
+    @Test
+    fun launcherUninstallDialogForArcifyIsCaught() {
+        assertEquals(Threat.UNINSTALL, detectInLauncher(screen("Uninstall Arcify?", "Cancel", "Uninstall")))
+        assertEquals(Threat.UNINSTALL, detectInLauncher(screen("Arcify", "This app will be removed.", "Cancel", "Uninstall")))
+    }
+
+    @Test
+    fun launcherMenusAndOtherAppsAreLeftAlone() {
+        // Long-press menu: Arcify's icon label is visible, but there is no Cancel button.
+        assertNull(detectInLauncher(screen("Arcify", "Calculator", "App info", "Uninstall")))
+        assertNull(detectInLauncher(screen("Uninstall Some Game?", "Cancel", "Uninstall")))
+        assertNull(detectInLauncher(screen("Arcify", "Camera", "Photos")))
+    }
+
     @Test
     fun onlyGuardedPackagesAreInspected() {
         assertTrue(ProtectionDetector.guards(settings, hints))

@@ -4,8 +4,10 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M6 built and unit-tested (PR from `m6/insights-schedule`) → **M6b next**: F13 notification batching, F14 study wake alarm, and the adult-site list (StevenBlack, MIT; the user OK'd downloading it on 2026-11-05). Phone calibration (M4b + M5 + M6 checks) is still pending.
-- **Next step, when a phone is connected (M4b, calibration):**
+- **Current milestone:** M2–M6 merged into `main`, plus the phone-test fixes (`fix/device-round1`, 3 rounds; the user confirmed on 2026-11-05 that strict focus with allowed apps, Instagram per-surface rules incl. DM-only reels, and uninstall protection all work on a realme RMX3840 / Android 16) → **M6b next**: F13 notification batching, F14 study wake alarm, and the adult-site list (StevenBlack, MIT; the user OK'd downloading it on 2026-11-05).
+- **Next step:** branch `m6b/batching-alarm-adult` from `main` and build F13, F14 and the adult list.
+- **Still to check on the phone later:** split screen, home hiding (proxy launcher), schedule alarms after reboot, the widget, Insights over several days, Snapchat/Facebook detectors.
+- **Old checklist (pre-device, kept for reference; mostly done) — when a phone is connected (M4b, calibration):**
   1. Install the debug APK, grant Accessibility + Usage access.
   2. Block → Shorts & Reels → turn on "Detector calibration".
   3. Use Instagram (Home, Explore, Reels tab, a DM thread, a reel opened from a DM), YouTube (Shorts, a normal video, a channel page) and Chrome/Brave (instagram.com/reels, youtube.com/shorts).
@@ -112,6 +114,41 @@
 - [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
 - [ ] **M8 (later) Online features** (F11, self-hostable backend behind `SyncRepository`)
 
+## 2b. Device testing (realme RMX3840, Android 16 / API 36, realme UI)
+- **Round 1 (2026-11-05)** on branch `fix/device-round1`:
+  - Timer, app limits and Chrome website blocks worked.
+  - Strict focus blocked allowed apps; Shorts/Reels detection failed; realme's launcher uninstalled Arcify despite device admin; insights showed nothing.
+- **Round 2 fixes:**
+  - Settings was treated as a launcher (its `FallbackHome`, priority < 0, has the HOME category). Arcify inspected its own screens, so the uninstall guard fired on "Uninstall/Cancel" text in Arcify, causing flash loops.
+  - Stray launcher window events stole "foreground"; now a launcher must own the active window.
+  - Added per-app action cool-downs (2 s) and a block-screen repeat guard (1.5 s, no animation).
+  - Instagram surfaces are now based on real IDs. An unknown surface uses the Instagram-wide rule, not the strictest one.
+  - Recorder redacts long hints and descriptions.
+- **Verified facts (from `uiautomator dump` and recordings; raw data never committed):**
+  - Chrome address bar: `com.android.chrome:id/url_bar`, text like `reddit.com`, `m.youtube.com/shorts/<id>`.
+  - YouTube Shorts: `reel_play_pause_button`, `reel_next_reel_button`; bottom "Shorts" tab selected; the like column isn't always present.
+  - YouTube long-form: `watch_player`; the like row is horizontal; channel comes from a "Subscribe to <name>." description.
+  - Instagram reel viewer: `clips_viewer…`, visible only while a reel is on screen (hidden but present on other tabs).
+  - Instagram bottom tabs: `tab_bar` with selected `feed_tab` / `search_tab` / `clips_tab` / `direct_tab`. A stray off-screen "Reels" element is always selected; ignore off-screen bounds.
+  - Instagram DM: thread IDs `direct_thread_header`, `thread_view_root`, `message_thread_container`, `reel_share_item_view`. A reel opened from a DM is a full-screen viewer with no tab bar and a "Reply to …" box; swiping on removes the box (suggested reels).
+  - realme launcher `com.android.launcher` shows its own uninstall dialog and removes apps itself (`uninstallSource = com.android.launcher`).
+- **Tools:**
+  - Engine logs: `adb logcat -s Arcify`.
+  - Replay recordings: set `ARCIFY_RECORDINGS=<folder>` and run `gradlew :blocker:testDebugUnitTest --tests *RecordedScreensTest* -i`.
+  - Pull recordings: `adb exec-out run-as app.arcify.debug tar c files/snapshots`.
+- **Round 3 (2026-11-05), confirmed working by the user:**
+  - Foreground = owner of the active application window, re-checked before acting. Blinkit/Amazon were kicked back to focus because their screens were never recognised.
+  - Instagram DMs set to Allow permit only the reel opened from the chat; swiping on gives `DmScroll`.
+  - DM reply hint narrowed to "reply to".
+  - Content blocks show an accessibility-overlay banner (`BlockBanner`) instead of the full-screen page, so there's no flash and no feed refresh.
+  - Reels tab is left by tapping `feed_tab`.
+  - `BlockScreenLauncher.showContentBlock` was removed. `BlockOverlayActivity`'s content reasons still exist but are unused.
+- **Known gaps (not fixed yet):**
+  - Changing the system clock can end time-based locks early.
+  - Safe mode / adb can always remove the app.
+  - OEM battery managers can kill the accessibility service (no heartbeat/re-enable nudge yet).
+  - Insights text rendering ("smudged") is left for the UI pass.
+
 ## 3. Decisions log
 | Date | Decision | Why |
 |---|---|---|
@@ -187,3 +224,4 @@
 - 2026-11-05 — Session 1 (cont.): PR #3 merged (27e1912). M4 on `m4/content-blocking`: short-form/website/study rules, Room v3, detectors + ContentGuard + recorder, Block hub with 3 new screens; 74 tests passing; APK builds. In-app detectors unverified (no phone yet).
 - 2026-11-05 — Session 1 (cont.): PR #4 merged (d8eb4b2). M5 on `m5/protection`: protection levels + commitments, protection detector, device admin, window checks, proxy home + chooser, emergency exit, Protection screen; 88 tests passing; APK builds. Not yet tried on a device.
 - 2026-11-05 — Session 1 (cont.): PR #5 merged (5d6e47b). The user chose F13 + F14 + the StevenBlack list (→ M6b). M6 on `m6/insights-schedule`: usage history, insights tab, streaks, schedule + alarms, daily goal, nudges, Today widget; 100 tests passing; APK builds.
+- 2026-11-05 — Session 1 (cont.): first phone tests on realme RMX3840 / Android 16. Three fix rounds on `fix/device-round1` (687dfd9, 9964477, 92621e1) driven by logcat, `uiautomator` dumps and recordings; 115 tests passing; the user confirmed everything tested works. Merged PR #6 and the fix PR into `main`. Next: M6b.

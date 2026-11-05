@@ -28,4 +28,10 @@ class SnapshotJsonTest {
         assertEquals("Like", redacted.children[1].contentDescription)
         assertEquals("Message...", redacted.children[1].hint)
     }
+
+    @Test
+    fun longLabelsThatCanHoldNamesAreCut() {
+        assertEquals("Reply [21]", SnapshotJson.redactLabel("Reply to Some Friend!"))
+        assertEquals("Search and explore", SnapshotJson.redactLabel("Search and explore"))
+    }
 }

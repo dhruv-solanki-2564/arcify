@@ -83,13 +83,30 @@ class ContentGuardTest {
             ),
         )
         guard.inspect(instagram, Screens.instagramDmThread(), Screens.PORTRAIT, 0, state)
-        assertNull(guard.inspect(instagram, Screens.shortFormPlayer("friend's reel"), Screens.PORTRAIT, 100, state))
+        assertNull(guard.inspect(instagram, Screens.dmSharedReel("friend's reel"), Screens.PORTRAIT, 100, state))
         assertEquals(IgSurface.DM, store.recorded.single().surface)
+        // "Allow DMs" means only the reel that was sent: swiping on is blocked.
+        assertEquals(ContentBlock.DmScroll, guard.inspect(instagram, Screens.suggestedReel("suggested"), Screens.PORTRAIT, 150, state))
+        assertEquals(ContentBlock.DmScroll, guard.inspect(instagram, Screens.dmSharedReel("another"), Screens.PORTRAIT, 160, state))
 
         guard.inspect(instagram, Screens.instagramExplore(), Screens.PORTRAIT, 200, state)
         assertEquals(
             ContentBlock.ShortForm(Platform.INSTAGRAM, IgSurface.EXPLORE),
             guard.inspect(instagram, Screens.shortFormPlayer("explore reel"), Screens.PORTRAIT, 300, state),
+        )
+    }
+
+    @Test
+    fun withoutADmRuleSwipedToReelsFollowTheReelsTabRule() = runTest {
+        val guard = ContentGuard(FakeStore())
+        val state = baseState.copy(
+            shortFormRules = listOf(ShortFormRule(Platform.INSTAGRAM, IgSurface.REELS_TAB, ShortFormMode.BLOCK)),
+        )
+        guard.inspect(instagram, Screens.instagramDmThread(), Screens.PORTRAIT, 0, state)
+        assertNull(guard.inspect(instagram, Screens.dmSharedReel("sent"), Screens.PORTRAIT, 100, state))
+        assertEquals(
+            ContentBlock.ShortForm(Platform.INSTAGRAM, IgSurface.REELS_TAB),
+            guard.inspect(instagram, Screens.suggestedReel("feed"), Screens.PORTRAIT, 200, state),
         )
     }
 

@@ -55,10 +55,21 @@ class ProtectionTest {
     }
 
     @Test
-    fun hardExitPhraseMustMatchIgnoringCaseAndSpacing() {
-        assertTrue(HardExit.matches("  i am choosing to   end my focus session early. "))
-        assertFalse(HardExit.matches("I am choosing to end my focus session"))
-        assertFalse(HardExit.matches(""))
+    fun emergencyCodesAreLongRandomAndMixed() {
+        val codes = (1..200).map { HardExit.newCode() }
+        assertTrue(codes.all { it.length == HardExit.CODE_LENGTH && it.length >= 20 })
+        assertTrue(codes.all { code -> code.any(Char::isUpperCase) && code.any(Char::isLowerCase) && code.any(Char::isDigit) })
+        assertTrue(codes.none { code -> code.any { it in "0Oo1lI" } })
+        assertEquals(codes.size, codes.toSet().size)
+    }
+
+    @Test
+    fun emergencyCodeMustMatchExactlyIncludingCase() {
+        val code = HardExit.newCode()
+        assertTrue(HardExit.matches("  $code ", code))
+        assertFalse(HardExit.matches(code.lowercase(), code))
+        assertFalse(HardExit.matches(code.dropLast(1), code))
+        assertFalse(HardExit.matches("", code))
     }
 
     @Test

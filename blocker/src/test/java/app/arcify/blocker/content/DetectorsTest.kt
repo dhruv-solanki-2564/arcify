@@ -53,21 +53,51 @@ class DetectorsTest {
     }
 
     @Test
-    fun instagramSurfaceFollowsWhereTheUserCameFrom() {
+    fun instagramReelsAreDetectedByTheirClipsViewer() {
+        assertNotNull(ShortFormDetector.detect(Screens.reelsTabPlayer("a"), Screens.PORTRAIT, hints))
+        assertNotNull(ShortFormDetector.detect(Screens.dmSharedReel("a"), Screens.PORTRAIT, hints))
+        assertNull(ShortFormDetector.detect(Screens.instagramHome(), Screens.PORTRAIT, hints))
+    }
+
+    @Test
+    fun theSelectedBottomTabDecidesOnMainScreens() {
         val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
-        val player = Screens.shortFormPlayer("x")
-        assertEquals(IgSurface.UNKNOWN, tracker.surfaceForPlayer(player))
+        val screen = Screens.PORTRAIT
+        // The stray off-screen "Reels" element must not make every reel look like the Reels tab.
+        assertEquals(IgPlacement(IgSurface.FEED), tracker.placementForPlayer(Screens.reelInMainScreen("x", "feed_tab"), screen, "a"))
+        assertEquals(IgPlacement(IgSurface.EXPLORE), tracker.placementForPlayer(Screens.reelInMainScreen("x", "search_tab"), screen, "a"))
+        assertEquals(IgPlacement(IgSurface.REELS_TAB), tracker.placementForPlayer(Screens.reelsTabPlayer("x"), screen, "a"))
+    }
 
-        tracker.observe(Screens.instagramDmThread())
-        assertEquals(IgSurface.DM, tracker.surfaceForPlayer(player))
+    @Test
+    fun onlyTheReelOpenedFromAChatIsTheDmSurface() {
+        val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
+        val screen = Screens.PORTRAIT
+        tracker.observe(Screens.instagramDmThread(), screen)
+        assertEquals(IgPlacement(IgSurface.DM), tracker.placementForPlayer(Screens.dmSharedReel("sent"), screen, "sent"))
+        // Still the same reel while it plays.
+        assertEquals(IgPlacement(IgSurface.DM), tracker.placementForPlayer(Screens.dmSharedReel("sent"), screen, "sent"))
+        // Any other reel in that viewer, with or without a reply box, is beyond the shared one.
+        assertEquals(
+            IgPlacement(IgSurface.DM, beyondSharedReel = true),
+            tracker.placementForPlayer(Screens.dmSharedReel("another"), screen, "another"),
+        )
+        assertEquals(
+            IgPlacement(IgSurface.DM, beyondSharedReel = true),
+            tracker.placementForPlayer(Screens.suggestedReel("random"), screen, "random"),
+        )
+        // Back in the chat, the next reel opened is a fresh shared reel.
+        tracker.observe(Screens.instagramDmThread(), screen)
+        assertEquals(IgPlacement(IgSurface.DM), tracker.placementForPlayer(Screens.dmSharedReel("other sent"), screen, "other sent"))
+    }
 
-        tracker.observe(Screens.instagramExplore())
-        assertEquals(IgSurface.EXPLORE, tracker.surfaceForPlayer(player))
-
-        tracker.observe(Screens.instagramHome())
-        assertEquals(IgSurface.FEED, tracker.surfaceForPlayer(player))
-
-        assertEquals(IgSurface.REELS_TAB, tracker.surfaceForPlayer(Screens.reelsTabPlayer("y")))
+    @Test
+    fun fullScreenViewersInheritTheLastMainScreen() {
+        val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
+        val screen = Screens.PORTRAIT
+        assertEquals(IgPlacement(IgSurface.UNKNOWN), tracker.placementForPlayer(Screens.suggestedReel("x"), screen, "x"))
+        tracker.observe(Screens.instagramExplore(), screen)
+        assertEquals(IgPlacement(IgSurface.EXPLORE), tracker.placementForPlayer(Screens.suggestedReel("x"), screen, "x"))
     }
 
     @Test
@@ -75,6 +105,52 @@ class DetectorsTest {
         val chrome = ContentDefaults.browsers.first { it.packageName == "com.android.chrome" }
         assertEquals("youtube.com/shorts/abc", BrowserUrlDetector.read(Screens.browser("youtube.com/shorts/abc"), chrome))
         assertNull(BrowserUrlDetector.read(Screens.browser("x.com", pkg = "com.other"), chrome))
+    }
+
+    /** Mirrors the YouTube Shorts layout seen on a real phone: `reel_…` controls, no visible like column. */
+    private fun youtubeShorts(progress: String) = NodeSnapshot(
+        bounds = Screens.PORTRAIT,
+        children = listOf(
+            NodeSnapshot(viewId = "com.google.android.youtube:id/reel_play_pause_button", contentDescription = "Pause video", bounds = Bounds(479, 1084, 601, 1206)),
+            NodeSnapshot(viewId = "com.google.android.youtube:id/reel_next_reel_button", contentDescription = "Next Video", bounds = Bounds(479, 1206, 601, 1328)),
+            NodeSnapshot(contentDescription = "Shorts", selected = true, bounds = Bounds(270, 2178, 540, 2300)),
+            NodeSnapshot(contentDescription = progress, bounds = Bounds(0, 2116, 1080, 2238)),
+            NodeSnapshot(text = "Cooking a quick pasta", bounds = Bounds(40, 1900, 700, 1960)),
+        ),
+    )
+
+    @Test
+    fun youtubeShortsAreRecognisedByTheirReelControls() {
+        val early = ShortFormDetector.detect(youtubeShorts("0 minutes 6 seconds of 0 minutes 23 seconds"), Screens.PORTRAIT, hints)
+        val later = ShortFormDetector.detect(youtubeShorts("0 minutes 9 seconds of 0 minutes 23 seconds"), Screens.PORTRAIT, hints)
+        assertNotNull(early)
+        // The ticking progress label must not make one Short look like a new one.
+        assertEquals(early!!.itemKey, later!!.itemKey)
+    }
+
+    @Test
+    fun aRegularYoutubeVideoIsNotShortForm() {
+        val watch = NodeSnapshot(
+            bounds = Screens.PORTRAIT,
+            children = listOf(
+                NodeSnapshot(viewId = "com.google.android.youtube:id/watch_player", contentDescription = "Video player", bounds = Bounds(0, 112, 1080, 720)),
+                NodeSnapshot(contentDescription = "like this video along with 3,481,707 other people", bounds = Bounds(555, 910, 660, 1032)),
+                NodeSnapshot(contentDescription = "Dislike this video", bounds = Bounds(660, 910, 765, 1032)),
+                NodeSnapshot(contentDescription = "Share", bounds = Bounds(765, 910, 870, 1032)),
+            ),
+        )
+        assertNull(ShortFormDetector.detect(watch, Screens.PORTRAIT, hints))
+    }
+
+    @Test
+    fun youtubeChannelIsReadFromTheSubscribeButton() {
+        val page = NodeSnapshot(
+            children = listOf(
+                NodeSnapshot(contentDescription = "Lofi Girl, Official Artist Channel 15.8m subscribers"),
+                NodeSnapshot(contentDescription = "Subscribe to Lofi Girl."),
+            ),
+        )
+        assertEquals("Lofi Girl", YouTubeChannelDetector.channelOnWatchPage(page, DetectorDefaults.youtube))
     }
 
     @Test

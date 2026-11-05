@@ -45,9 +45,9 @@ class FocusViewModel @Inject constructor(
         .map { it.hardExitEnabled }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    /** Ends a strict session early if [input] is exactly the emergency-exit phrase. Returns whether it matched. */
-    fun emergencyExit(input: String): Boolean {
-        if (!HardExit.matches(input)) return false
+    /** Ends a strict session early if [input] is exactly the shown emergency [code]. Returns whether it matched. */
+    fun emergencyExit(input: String, code: String): Boolean {
+        if (!HardExit.matches(input, code)) return false
         viewModelScope.launch { controller.abandon() }
         return true
     }

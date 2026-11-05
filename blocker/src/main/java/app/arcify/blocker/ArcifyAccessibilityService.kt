@@ -4,7 +4,10 @@ import android.accessibilityservice.AccessibilityService
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
+import app.arcify.blocker.content.BlockBanner
+import app.arcify.blocker.content.ContentBlock
 import app.arcify.blocker.content.ContentGuard
+import app.arcify.core.content.IgSurface
 import app.arcify.blocker.content.ContentState
 import app.arcify.blocker.content.NodeSnapshots
 import app.arcify.blocker.content.ShortFormStore
@@ -28,6 +31,8 @@ import app.arcify.core.timer.TimerController
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.ZoneId
 import javax.inject.Inject
+import app.arcify.blocker.protection.Threat
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -64,7 +69,10 @@ class ArcifyAccessibilityService : AccessibilityService() {
     @Inject lateinit var screens: BlockScreenLauncher
     @Inject lateinit var recorder: SnapshotRecorder
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // A failure in one check is logged and must never take the whole service down.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, e -> Diag.error("engine error", e) },
+    )
     private var limits: Map<String, AppLimit> = emptyMap()
     private var allowedApps: Set<String> = emptySet()
     private var alwaysAllowed: Set<String> = emptySet()
@@ -79,6 +87,9 @@ class ArcifyAccessibilityService : AccessibilityService() {
     private var screenJob: Job? = null
     private var lastScreenCheck = 0L
     private var windowJob: Job? = null
+    private val cooldown = ActionCooldown()
+    private val banner: BlockBanner by lazy { BlockBanner(this) }
+    private var lastNote: String? = null
     private val appLabel: String by lazy { applicationInfo.loadLabel(packageManager).toString() }
     private val serviceLabel: String by lazy { getString(R.string.accessibility_service_label) }
     private val guard: ContentGuard by lazy {
@@ -93,6 +104,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         refreshSpecialApps()
+        Diag.log("service connected; launchers=$launchers")
         scope.launch {
             blockRepository.observeLimits().collect { list ->
                 limits = list.associateBy { it.packageName }
@@ -145,23 +157,21 @@ class ArcifyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            refreshForeground()
             scheduleWindowCheck()
             return
         }
         val pkg = event.packageName?.toString() ?: return
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            (pkg in launchers || appCatalog.isActivity(pkg, event.className?.toString())) &&
-            pkg != foreground
-        ) {
-            foreground = pkg
-            evaluate()
-        }
-        if (pkg == foreground && needsScreenCheck(pkg)) scheduleScreenCheck(pkg)
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) refreshForeground()
+        // Content is checked for whichever monitored app owns the active window; the
+        // active-window root is verified again before inspecting.
+        if (needsScreenCheck(pkg)) scheduleScreenCheck(pkg)
     }
 
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        banner.remove()
         scope.cancel()
         super.onDestroy()
     }
@@ -173,13 +183,48 @@ class ArcifyAccessibilityService : AccessibilityService() {
 
     // ---- App level ----
 
+    /**
+     * The app in front is whoever owns the *active application window*. Asking the system is
+     * reliable for every app; guessing from each app's own window events was not (some apps never
+     * report their screens as activities, so Arcify kept thinking the home screen was open).
+     * Keyboards, the notification shade and system overlays are not application windows, so they
+     * never count.
+     */
+    private fun activeAppPackage(): String? {
+        val active = windows.firstOrNull { it.isActive }
+        if (active != null && active.type != AccessibilityWindowInfo.TYPE_APPLICATION) return null
+        return (active?.root ?: rootInActiveWindow)?.packageName?.toString()
+    }
+
+    private fun refreshForeground() {
+        val pkg = activeAppPackage() ?: return
+        if (pkg == foreground) return
+        Diag.log("foreground $foreground -> $pkg")
+        foreground = pkg
+        evaluate()
+    }
+
     private fun evaluate() {
         val pkg = foreground ?: return
         evaluation?.cancel()
         evaluation = scope.launch {
             val (decision, limit, usedMs) = decide(pkg)
+            if (decision == BlockDecision.Allow) {
+                if (limit != null) remindIfClose(limit, usedMs)
+                return@launch
+            }
+            // Never act on a stale guess: the app must still own the active window right now.
+            val active = activeAppPackage()
+            if (active != null && active != pkg) {
+                Diag.log("not acting on $pkg: $active is in front")
+                refreshForeground()
+                return@launch
+            }
+            // Periodic re-checks and flow updates must not repeat an action that is still taking effect.
+            if (!cooldown.tryAct("app:$pkg:${decision::class.simpleName}", SystemClock.uptimeMillis())) return@launch
+            Diag.log("decision for $pkg: $decision")
             when (decision) {
-                BlockDecision.Allow -> if (limit != null) remindIfClose(limit, usedMs)
+                BlockDecision.Allow -> Unit
                 BlockDecision.ReturnToFocus -> screens.returnToFocus()
                 is BlockDecision.StrictFocus, is BlockDecision.LimitReached -> screens.showBlock(decision)
             }
@@ -192,7 +237,16 @@ class ArcifyAccessibilityService : AccessibilityService() {
         val limit = limits[pkg]?.takeIf { it.enabled }
         val usedMs = if (limit != null) withContext(Dispatchers.IO) { usageReader.usedTodayMs(pkg) } else 0L
         val focus = BlockPolicy.focusLock(timerController.timer.value, allowedApps + studyModeApps())
-        return Verdict(BlockPolicy.decide(pkg, alwaysAllowed, launchers, focus, limit, usedMs), limit, usedMs)
+        val decision = BlockPolicy.decide(
+            foreground = pkg,
+            alwaysAllowed = alwaysAllowed,
+            launcherPackages = launchers,
+            focus = focus,
+            limit = limit,
+            usedMs = usedMs,
+            userFacing = appCatalog.isUserFacing(pkg),
+        )
+        return Verdict(decision, limit, usedMs)
     }
 
     /** With a study mode on, YouTube or the browsers stay usable during strict focus; their content is policed instead. */
@@ -230,6 +284,8 @@ class ArcifyAccessibilityService : AccessibilityService() {
             if (pkg == foreground || pkg in alwaysAllowed || pkg in launchers) continue
             val decision = decide(pkg).decision
             if (decision is BlockDecision.StrictFocus || decision is BlockDecision.LimitReached) {
+                if (!cooldown.tryAct("window:$pkg", SystemClock.uptimeMillis())) return
+                Diag.log("second window $pkg: $decision")
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 screens.showBlock(decision)
                 return
@@ -239,9 +295,15 @@ class ArcifyAccessibilityService : AccessibilityService() {
 
     // ---- Screen content ----
 
+    /** Arcify's own screens are never inspected: they talk about uninstalling and blocking all the time. */
     private fun needsScreenCheck(pkg: String): Boolean =
-        guard.monitors(pkg, contentState) ||
-            (protectionActive && ProtectionDetector.guards(pkg, ProtectionDetector.DEFAULT_HINTS))
+        pkg != packageName &&
+            !cooldown.isCooling(pkg, SystemClock.uptimeMillis()) &&
+            (guard.monitors(pkg, contentState) || (protectionActive && guardsForProtection(pkg)))
+
+    /** Installer, settings and store screens, plus home-screen apps (their own uninstall dialogs). */
+    private fun guardsForProtection(pkg: String): Boolean =
+        pkg in launchers || ProtectionDetector.guards(pkg, ProtectionDetector.DEFAULT_HINTS)
 
     /** Throttles screen inspection to one per [SCREEN_INTERVAL_MS], always running the latest. */
     private fun scheduleScreenCheck(pkg: String) {
@@ -255,31 +317,68 @@ class ArcifyAccessibilityService : AccessibilityService() {
     }
 
     private suspend fun inspectScreen(pkg: String) {
-        if (pkg != foreground) return
-        val root = rootInActiveWindow ?: return
-        if (root.packageName?.toString() != pkg) return
+        val root = rootInActiveWindow
+        val rootPkg = root?.packageName?.toString()
+        if (root == null || rootPkg != pkg) {
+            Diag.log("skip $pkg: active window is ${rootPkg ?: "none"}")
+            return
+        }
         val snapshot = NodeSnapshots.capture(root)
         val now = timerController.now()
 
-        if (protectionActive && ProtectionDetector.guards(pkg, ProtectionDetector.DEFAULT_HINTS)) {
-            val threat = ProtectionDetector.detect(pkg, snapshot, appLabel, serviceLabel, ProtectionDetector.DEFAULT_HINTS)
+        if (protectionActive && guardsForProtection(pkg)) {
+            val threat = ProtectionDetector.detect(
+                pkg,
+                snapshot,
+                appLabel,
+                serviceLabel,
+                ProtectionDetector.DEFAULT_HINTS,
+                launcherPackages = launchers,
+            )
             if (threat != null) {
-                performGlobalAction(GLOBAL_ACTION_HOME)
+                cooldown.start(pkg, SystemClock.uptimeMillis())
+                Diag.log("protection: $threat in $pkg")
+                // Back cancels an uninstall dialog; Home leaves a settings or store page.
+                performGlobalAction(if (threat == Threat.UNINSTALL) GLOBAL_ACTION_BACK else GLOBAL_ACTION_HOME)
                 screens.showProtection(threat)
+                return
             }
-            return
+            if (!guard.monitors(pkg, contentState)) return
         }
 
         if (recorderOn) withContext(Dispatchers.IO) { recorder.save(pkg, snapshot, now) }
         val metrics = resources.displayMetrics
         val screen = Bounds(0, 0, metrics.widthPixels, metrics.heightPixels)
         val state = contentState.copy(timer = timerController.timer.value)
-        val block = guard.inspect(pkg, snapshot, screen, now, state) ?: return
+        val block = guard.inspect(pkg, snapshot, screen, now, state)
+        val note = guard.lastNote
+        if (note != null && note != lastNote) {
+            Diag.log("$pkg: $note")
+            lastNote = note
+        }
+        if (block == null) return
+        // One action per block: the events that follow while it takes effect are ignored for a moment.
+        cooldown.start(pkg, SystemClock.uptimeMillis())
+        Diag.log("content block in $pkg: $block")
+        leaveBlockedContent(root, block)
+        banner.show(block)
+    }
+
+    /**
+     * Leaves the blocked reel, Short or page while staying inside the app. On Instagram's Reels
+     * tab, tapping the Home tab is gentler than Back; everywhere else Back returns to where the
+     * user came from.
+     */
+    private fun leaveBlockedContent(root: android.view.accessibility.AccessibilityNodeInfo, block: ContentBlock) {
+        if (block is ContentBlock.ShortForm && block.platform == Platform.INSTAGRAM && block.surface == IgSurface.REELS_TAB) {
+            val home = root.findAccessibilityNodeInfosByViewId(INSTAGRAM_HOME_TAB).firstOrNull()
+            if (home != null && home.isVisibleToUser && home.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) return
+        }
         performGlobalAction(GLOBAL_ACTION_BACK)
-        screens.showContentBlock(block, pkg)
     }
 
     private companion object {
+        const val INSTAGRAM_HOME_TAB = "com.instagram.android:id/feed_tab"
         const val RECHECK_MS = 15_000L
         const val SCREEN_INTERVAL_MS = 300L
         const val WINDOW_CHECK_DELAY_MS = 400L
