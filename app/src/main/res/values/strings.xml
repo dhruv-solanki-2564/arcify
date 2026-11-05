@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Arcify</string>
+
+    <!-- Navigation -->
+    <string name="nav_focus">Focus</string>
+    <string name="nav_block">Block</string>
+    <string name="nav_schedule">Schedule</string>
+    <string name="nav_insights">Insights</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Placeholders for features in later milestones -->
+    <string name="placeholder_title">Coming soon</string>
+    <string name="placeholder_block">App limits, Shorts and Reels blocking, study modes and block protection arrive in milestones M3 to M5.</string>
+    <string name="placeholder_schedule">Planned sessions, repeats and the weekly calendar arrive in milestone M6.</string>
+    <string name="placeholder_insights">Screen time, unlocks and reel counts arrive in milestone M6.</string>
+    <string name="placeholder_settings">Permissions, editable lists and backups arrive with the features that use them.</string>
+
+    <!-- Focus setup -->
+    <string name="mode_timer">Timer</string>
+    <string name="mode_stopwatch">Stopwatch</string>
+    <string name="mode_pomodoro">Pomodoro</string>
+    <string name="minutes_short">%d min</string>
+    <string name="pomodoro_summary">%1$d min focus, %2$d min short break, %3$d min long break every %4$d cycles</string>
+    <string name="stopwatch_hint">Counts up until you stop it. Strict mode isn\'t available for the stopwatch.</string>
+    <string name="strict_mode">Strict mode: no pausing, and no stopping during focus</string>
+    <string name="start">Start</string>
+    <string name="focus_today">Focused today: %s</string>
+
+    <!-- Running session -->
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="stop">Stop</string>
+    <string name="phase_focus">Focus</string>
+    <string name="phase_short_break">Short break</string>
+    <string name="phase_long_break">Long break</string>
+    <string name="phase_stopwatch">Stopwatch</string>
+    <string name="paused">Paused</string>
+    <string name="paused_at">Paused at %s</string>
+    <string name="cycles_done">Focus cycles done: %d</string>
+    <string name="strict_active">Strict mode is on</string>
+
+    <!-- Notifications -->
+    <string name="channel_timer">Focus timer</string>
+    <string name="channel_timer_alerts">Timer alerts</string>
+    <string name="notif_starting">Starting focus timer</string>
+    <string name="alert_short_break">Focus block done. Take a short break.</string>
+    <string name="alert_long_break">Focus block done. Take a long break.</string>
+    <string name="alert_back_to_focus">Break is over. Back to focus.</string>
+    <string name="alert_session_done">Session complete</string>
+    <string name="alert_session_done_text">You focused for %s.</string>
+</resources>
