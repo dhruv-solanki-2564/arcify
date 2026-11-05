@@ -4,8 +4,14 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M6b merged into `main` (PR #8, f198a5c). Phone fixes are on branch `fix/m6b-device` (PR open). The user confirmed on 2026-11-05 that the adult-site filter and the wake-up alarm work on the realme phone.
-- **Next step:** merge the `fix/m6b-device` PR, then start **M7**: signed release APK, GitHub Actions build, GitHub Releases.
+- **Current milestone:** M6b and its phone fixes are merged (PR #8, #9; `main` = a22d9e5). **M7** (release builds + CI) is on branch `m7/release-ci` (PR open).
+  - Release builds: R8 + resource shrinking (2.9 MB). Signing comes from `keystore.properties` or `ARCIFY_*` env vars; the version from `-Parcify.versionName`.
+  - `.github/workflows/ci.yml` runs tests and builds a debug APK on push/PR. `release.yml` publishes a signed APK on a `v*` tag.
+  - A release build signed with the debug key passed a smoke test on the phone (all tabs and Block sub-screens; adult list loaded). It was then uninstalled.
+- **Next step:**
+  1. The user creates the release keystore and adds the 4 GitHub secrets (see `docs/RELEASING.md`).
+  2. Merge the M7 PR and check that CI is green.
+  3. Push tag `v0.2.0`. Get the user's OK first: this publishes a public release.
 - **F13 notification batching is not yet checked on the phone** (the user skipped it). Steps:
   1. Grant notification access.
   2. Add WhatsApp and pick 30 min.
@@ -124,7 +130,11 @@
   - [x] 131 unit tests passing; `assembleDebug` OK (15.7 MB)
   - [x] Adult filter and wake alarm checked on the phone (after the `fix/m6b-device` fixes)
   - [ ] Notification batching checked on the phone
-- [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
+- [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases): code on `m7/release-ci`, waiting for the signing key and first tag
+  - [x] Release build type: R8 + shrinkResources, `proguard-rules.pro`, signing from `keystore.properties`/env, versionName/versionCode from the tag
+  - [x] `ci.yml` (push to main + PRs: unit tests, debug APK artifact), `release.yml` (tag `v*`: signed APK + sha256 → GitHub Release)
+  - [x] `gradlew` marked executable in git; `docs/RELEASING.md`; README install section
+  - [ ] Keystore + secrets (user), first CI run green, first release `v0.2.0`
 - [ ] **M8 (later) Online features** (F11, self-hostable backend behind `SyncRepository`)
 
 ## 2b. Device testing (realme RMX3840, Android 16 / API 36, realme UI)
@@ -200,6 +210,9 @@
 | 2026-11-05 | Batching never holds calls, alarms, reminders, navigation, transport, ongoing or Arcify's own notifications; switching batching off delivers what's held | Batching must never hide something urgent or lose a message |
 | 2026-11-05 | Batches are delivered on fixed slots from local midnight (every 30 min / 1 / 2 / 3 h) with an inexact, idle-allowed alarm | Predictable times; no exact-alarm need for a non-urgent summary |
 | 2026-11-05 | Wake alarm: only the earliest alarm is armed (setAlarmClock); off only via focus, limited snooze, or three two-digit sums; Back disabled; stops after 10 min | One armed alarm keeps re-arming simple; the 10-min cap avoids ringing forever if the phone is away |
+| 2026-11-05 | Release key stays with the user (keystore + GitHub secrets). CI signs from the secrets; without a key the release APK is unsigned | The key can't be replaced later without breaking updates, so an agent must not create or hold it |
+| 2026-11-05 | versionCode derived from the tag (`1.2.3` → 10203) | Every tag gets a higher code, with no counter to keep in sync |
+| 2026-11-05 | R8 + resource shrinking for release; the only extra rule keeps project enums | Libraries ship their own rules; enums are stored by name |
 | 2026-11-05 | Receivers, worker and widget get dependencies through a Hilt `@EntryPoint` | `@AndroidEntryPoint` receivers need `super.onReceive` on an abstract method; entry points avoid that |
 
 ## 4. Environment
@@ -248,3 +261,4 @@
 - 2026-11-05 — Session 1 (cont.): first phone tests on realme RMX3840 / Android 16. Three fix rounds on `fix/device-round1` (687dfd9, 9964477, 92621e1) driven by logcat, `uiautomator` dumps and recordings; 115 tests passing; the user confirmed everything tested works. Merged PR #6 and the fix PR into `main`. Next: M6b.
 - 2026-11-05 — Session 1 (cont.): M6b on `m6b/batching-alarm-adult`: adult-site filter (StevenBlack list bundled), F14 wake-up alarm, F13 notification batching, Room v5; 131 tests passing; APK builds. Not yet on the phone.
 - 2026-11-05 — Session 1 (cont.): merged PR #8. Phone test of M6b: fixed adult-list loading (gz asset renamed by the build) and wake-alarm time picking on `fix/m6b-device` (03f1934); the user confirmed both work. Batching not yet tested.
+- 2026-11-05 — Session 1 (cont.): merged PR #9. M7 on `m7/release-ci`: release signing/versioning/R8, CI and release workflows, RELEASING.md; release build smoke-tested on the phone. Waiting for the user's keystore and secrets.
