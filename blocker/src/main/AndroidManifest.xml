@@ -26,5 +26,19 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/arcify_accessibility_service" />
         </service>
+
+        <!-- Optional uninstall protection (spec F07). -->
+        <receiver
+            android:name=".protection.ArcifyDeviceAdminReceiver"
+            android:exported="true"
+            android:label="@string/device_admin_label"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/arcify_device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

@@ -20,3 +20,14 @@
 - **Always allowed**: Arcify, system UI, the default dialer and SMS apps, telephony/emergency packages, enabled keyboards (`AppCatalog.alwaysAllowedPackages`).
 - **Allowed list**: user-editable in the Block tab, with reset to defaults (`strict_allowed_app` table). JSON export comes with the Settings work.
 - **Deferred to M5**: the optional proxy launcher (`ProxyHomeActivity`) and the hard-exit phrase. They ship together with block protection, because they change how the user gets out of the app.
+
+## Implementation (M5)
+- **Proxy launcher** (`app/.../home/`):
+  - `ProxyHomeActivity` declares the HOME category but **ships disabled**, so installing Arcify never triggers the "choose a home app" prompt.
+  - It's enabled only when the user opts in (Block → Protection → "Use Arcify as the home app"), after choosing their normal launcher.
+  - `HomeRouting` (pure, tested): focus screen during a strict focus phase; otherwise the chosen launcher; otherwise a `LauncherChooserActivity`, so Home can never lead nowhere, even if the chosen launcher was uninstalled.
+  - It draws nothing (translucent, no animation) and forwards.
+- **Emergency exit**:
+  - `HardExit.PHRASE`: "I am choosing to end my focus session early". Case, spacing and a final full stop are ignored.
+  - Off by default, and can only be switched on when nothing is committed.
+  - On the Focus screen during a strict session it shows an "Emergency exit" button and a dialog to type the phrase. `TimerController.abandon()` ends the session as not completed.

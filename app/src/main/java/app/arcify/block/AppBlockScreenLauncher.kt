@@ -6,6 +6,7 @@ import app.arcify.MainActivity
 import app.arcify.blocker.AppCatalog
 import app.arcify.blocker.BlockScreenLauncher
 import app.arcify.blocker.content.ContentBlock
+import app.arcify.blocker.protection.Threat
 import app.arcify.core.block.BlockDecision
 import dagger.Binds
 import dagger.Module
@@ -68,6 +69,10 @@ class AppBlockScreenLauncher @Inject constructor(
             is ContentBlock.Website -> BlockOverlayActivity.website(context, viaPackage, block.host, block.studyMode)
         }
         context.startActivity(intent)
+    }
+
+    override fun showProtection(threat: Threat) {
+        context.startActivity(BlockOverlayActivity.protection(context, threat))
     }
 }
 

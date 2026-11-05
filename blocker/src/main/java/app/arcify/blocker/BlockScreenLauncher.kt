@@ -1,6 +1,7 @@
 package app.arcify.blocker
 
 import app.arcify.blocker.content.ContentBlock
+import app.arcify.blocker.protection.Threat
 import app.arcify.core.block.BlockDecision
 
 /**
@@ -19,4 +20,7 @@ interface BlockScreenLauncher {
 
     /** Content inside [viaPackage] was blocked; the engine has already navigated back. */
     fun showContentBlock(block: ContentBlock, viaPackage: String)
+
+    /** A screen that would disable or remove Arcify was closed; the engine has already gone home. */
+    fun showProtection(threat: Threat)
 }

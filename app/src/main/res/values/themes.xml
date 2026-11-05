@@ -4,4 +4,9 @@
     <style name="Theme.Arcify" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
     </style>
+
+    <!-- For the home-screen proxy, which only forwards and never draws. -->
+    <style name="Theme.Arcify.Invisible" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

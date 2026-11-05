@@ -27,6 +27,7 @@ import app.arcify.R
 import app.arcify.ui.block.BlockHubRoute
 import app.arcify.ui.block.BlockSection
 import app.arcify.ui.block.LimitsRoute
+import app.arcify.ui.block.ProtectionRoute
 import app.arcify.ui.block.ShortsRoute
 import app.arcify.ui.block.WebsitesRoute
 import app.arcify.ui.block.YouTubeStudyRoute
@@ -80,6 +81,7 @@ fun ArcifyRoot() {
             composable(BlockSection.SHORTS.route) { ShortsRoute() }
             composable(BlockSection.YOUTUBE.route) { YouTubeStudyRoute() }
             composable(BlockSection.WEBSITES.route) { WebsitesRoute() }
+            composable(BlockSection.PROTECTION.route) { ProtectionRoute() }
             composable(TopLevel.SCHEDULE.route) {
                 PlaceholderScreen(R.string.nav_schedule, R.string.placeholder_schedule)
             }

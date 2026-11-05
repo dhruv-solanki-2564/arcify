@@ -3,8 +3,10 @@ package app.arcify.ui.focus
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.arcify.core.data.ProtectionRepository
 import app.arcify.core.data.SessionRepository
 import app.arcify.core.data.TimerSettingsRepository
+import app.arcify.core.protection.HardExit
 import app.arcify.core.timer.ActiveTimer
 import app.arcify.core.timer.PomodoroConfig
 import app.arcify.core.timer.TimerController
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -33,7 +36,19 @@ class FocusViewModel @Inject constructor(
     private val controller: TimerController,
     settings: TimerSettingsRepository,
     sessions: SessionRepository,
+    protection: ProtectionRepository,
 ) : ViewModel() {
+
+    val hardExitEnabled: StateFlow<Boolean> = protection.settings
+        .map { it.hardExitEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Ends a strict session early if [input] is exactly the emergency-exit phrase. Returns whether it matched. */
+    fun emergencyExit(input: String): Boolean {
+        if (!HardExit.matches(input)) return false
+        viewModelScope.launch { controller.abandon() }
+        return true
+    }
 
     /** Re-renders the clock twice a second; the time itself comes from timestamps. */
     private val ticker = flow {

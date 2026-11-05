@@ -4,14 +4,19 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M4 built and unit-tested (PR from `m4/content-blocking`). Calibration on a phone is still pending (call it M4b) → then **M5** (block protection + proxy launcher + hard exit)
+- **Current milestone:** M5 built and unit-tested (PR from `m5/protection`) → **M6 next**: insights, schedule, nudges (F08, F09, F10), plus deciding F13/F14 with the user. Phone calibration (M4b, plus M5 guards) is still pending.
 - **Next step, when a phone is connected (M4b, calibration):**
   1. Install the debug APK, grant Accessibility + Usage access.
   2. Block → Shorts & Reels → turn on "Detector calibration".
   3. Use Instagram (Home, Explore, Reels tab, a DM thread, a reel opened from a DM), YouTube (Shorts, a normal video, a channel page) and Chrome/Brave (instagram.com/reels, youtube.com/shorts).
   4. Pull the recordings: `adb exec-out run-as app.arcify.debug tar c files/snapshots > snapshots.tar`. Review them (text is redacted, but descriptions remain) and turn the good ones into fixtures under `blocker/src/test/resources/fixtures/`.
   5. Tune `DetectorDefaults` (control words, IG tab labels and DM markers, YouTube channel hints) and the Chrome/Brave `url_bar` IDs until the fixture tests pass. Then turn the recorder off.
-- **If no phone:** M5 can go ahead (proxy launcher, hard-exit phrase, uninstall/settings guards). Its guards also need device checks later.
+  6. **M5 checks on the phone**:
+     - Set protection to "Always". Try the uninstall dialog, Settings → Apps → Arcify, Settings → Accessibility → Arcify blocker, and the device admin page; each should go Home with "Protection is on". Record these screens too.
+     - Split screen with a blocked app.
+     - Home hiding: choose a launcher, switch it on, set Arcify as the default home app, start a strict session and press Home (focus screen); during a break, Home opens the real launcher.
+     - Emergency exit with the phrase.
+- **If no phone:** M6 can go ahead (insights, schedule, nudges). It needs no device-specific detection.
 - **Decision pending from the user:** the adult-site list (F06). Fetching a third-party hosts list (e.g. StevenBlack, MIT) needs their OK; alternatively, import from a file they provide.
 - **Not yet verified on a device (M2 + M3 + M4):** nothing has been installed anywhere (no phone connected). When a device is available:
   1. Install `app-debug.apk`.
@@ -64,7 +69,7 @@
   - [x] 38 unit tests passing; `assembleDebug` OK (12.8 MB)
   - [ ] Installed and checked on a device
   - Deferred to M5: proxy launcher (`ProxyHomeActivity`) + hard-exit phrase. Deferred to M6: limit streaks, top-3 suggestions
-- [ ] **M4 Content blocking** (F4 incl. Instagram per-surface toggles + reel/shorts counters + block-after-N, F5 default lo-fi study list, F6): code done, awaiting PR merge + calibration
+- [x] **M4 Content blocking** (F4 incl. Instagram per-surface toggles + reel/shorts counters + block-after-N, F5 default lo-fi study list, F6): merged in PR #4 (d8eb4b2); calibration pending
   - [x] `:core` rules:
     - `ShortFormPolicy` (surface overrides, strictest-for-unknown, limit, strict-only-tighter), `ShortFormDeduper`.
     - `UrlNormalizer`/`ShortFormUrls`/`WebsitePolicy`, `StudyChannelPolicy` (compact matching, input parsing), `StudyModes`.
@@ -82,7 +87,15 @@
   - [x] 74 unit tests passing; `assembleDebug` OK (12.7 MB), no warnings
   - [ ] **Calibrate detectors with recordings from a real phone** (IG, YouTube, Snapchat, FB, Chrome/Brave IDs)
   - [ ] Adult-site list (needs the user's OK to fetch a third-party list), live counter chip, editable detector labels, JSON export
-- [ ] **M5 Block protection** (F7)
+- [ ] **M5 Block protection** (F7, plus the F02 proxy launcher and emergency exit): code done, awaiting PR merge + device checks
+  - [x] `:core`: `ProtectionLevel`/`Commitments`/`ProtectionRules`, `HardExit`, `HomeRouting`, `FocusTimer.abandon` + `TimerController.abandon`; `CommitmentTracker`, `ProtectionRepository`
+  - [x] `:blocker`: `ProtectionDetector` (installer / settings / Play Store), `ArcifyDeviceAdminReceiver` + `DeviceAdmin`. The service now:
+    - closes protected screens (Home plus a block screen) while protection is active;
+    - checks every app window (split screen, floating);
+    - adds `typeWindowsChanged` + `flagRetrieveInteractiveWindows` to the config.
+  - [x] `:app`: `ProxyHomeActivity` (ships disabled) + `LauncherChooserActivity` + `HomeSetup`; Protection screen; emergency exit on the Focus screen; PROTECTION block reason
+  - [x] 88 unit tests passing; `assembleDebug` OK (13.2 MB), no warnings
+  - [ ] Device checks: guards on several OEM settings apps, split screen, home hiding, device admin
 - [ ] **M6 Insights + Schedule + Nudges** (F8, F9, F10)
 - [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
 - [ ] **M8 (later) Online features** (F11, self-hostable backend behind `SyncRepository`)
@@ -109,6 +122,11 @@
 | 2026-11-05 | Study modes apply during focus phases of any session (not only strict) and keep YouTube/browsers usable in strict focus | Matches the "during focus" wording in the listing |
 | 2026-11-05 | No rule = allowed but counted; YouTube channel detection fails open | Counting gives awareness by default; a detector miss must not lock users out of YouTube |
 | 2026-11-05 | Detector defaults and seed lists live in Kotlin (`ContentDefaults`, `DetectorDefaults`); JSON import/export later with Settings | Keeps M4 small and unit-testable; CLAUDE.md rule 7 export still owed |
+| 2026-11-05 | Protection default = "While committed"; a strict session commits for its whole length (breaks included) | Breaks mustn't become an escape window; "Always" stays opt-in |
+| 2026-11-05 | Proxy home activity ships `enabled=false`, toggled with `setComponentEnabledSetting` | Declaring HOME would otherwise make Android ask "which home app?" for every user |
+| 2026-11-05 | Split-screen/floating checks apply whenever an app would be blocked, not only with protection on | Otherwise split screen would bypass limits and strict focus |
+| 2026-11-05 | Protection responds with Home (not Back) | Back from a Settings page often lands on another guarded page |
+| 2026-11-05 | Emergency-exit phrase: "I am choosing to end my focus session early" | Long enough to make breaking a session deliberate; own wording |
 
 ## 4. Environment
 - Repo: `C:\Users\Admin\Projects\arcify` · RE workspace: `C:\Users\Admin\Projects\arcify-re\` (apk/, evidence/, ledger.md)
@@ -150,3 +168,4 @@
 - 2026-11-05 — Session 1 (cont.): PR #1 merged (f9b9914). M2 on `m2/skeleton-timer`: Gradle project, timer engine + 19 tests passing, foreground timer service, Compose UI; debug APK builds. Hit and worked around the wrapper SSL issue. Not yet tried on a device.
 - 2026-11-05 — Session 1 (cont.): PR #2 merged (925ae15). M3 on `m3/blocking-engine`: limit/block/usage rules, Room v2, accessibility service, block screen, Block tab; 38 tests passing; APK builds. Specs F02/F03 updated. Not yet tried on a device.
 - 2026-11-05 — Session 1 (cont.): PR #3 merged (27e1912). M4 on `m4/content-blocking`: short-form/website/study rules, Room v3, detectors + ContentGuard + recorder, Block hub with 3 new screens; 74 tests passing; APK builds. In-app detectors unverified (no phone yet).
+- 2026-11-05 — Session 1 (cont.): PR #4 merged (d8eb4b2). M5 on `m5/protection`: protection levels + commitments, protection detector, device admin, window checks, proxy home + chooser, emergency exit, Protection screen; 88 tests passing; APK builds. Not yet tried on a device.
