@@ -4,8 +4,10 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M6 built and unit-tested (PR from `m6/insights-schedule`) → **M6b next**: F13 notification batching, F14 study wake alarm, and the adult-site list (StevenBlack, MIT; the user OK'd downloading it on 2026-11-05). Phone calibration (M4b + M5 + M6 checks) is still pending.
-- **Next step, when a phone is connected (M4b, calibration):**
+- **Current milestone:** M2–M6 merged into `main`, plus the phone-test fixes (`fix/device-round1`, 3 rounds; the user confirmed on 2026-11-05 that strict focus with allowed apps, Instagram per-surface rules incl. DM-only reels, and uninstall protection all work on a realme RMX3840 / Android 16) → **M6b next**: F13 notification batching, F14 study wake alarm, and the adult-site list (StevenBlack, MIT; the user OK'd downloading it on 2026-11-05).
+- **Next step:** branch `m6b/batching-alarm-adult` from `main` and build F13, F14 and the adult list.
+- **Still to check on the phone later:** split screen, home hiding (proxy launcher), schedule alarms after reboot, the widget, Insights over several days, Snapchat/Facebook detectors.
+- **Old checklist (pre-device, kept for reference; mostly done) — when a phone is connected (M4b, calibration):**
   1. Install the debug APK, grant Accessibility + Usage access.
   2. Block → Shorts & Reels → turn on "Detector calibration".
   3. Use Instagram (Home, Explore, Reels tab, a DM thread, a reel opened from a DM), YouTube (Shorts, a normal video, a channel page) and Chrome/Brave (instagram.com/reels, youtube.com/shorts).
@@ -134,6 +136,13 @@
   - Engine logs: `adb logcat -s Arcify`.
   - Replay recordings: set `ARCIFY_RECORDINGS=<folder>` and run `gradlew :blocker:testDebugUnitTest --tests *RecordedScreensTest* -i`.
   - Pull recordings: `adb exec-out run-as app.arcify.debug tar c files/snapshots`.
+- **Round 3 (2026-11-05), confirmed working by the user:**
+  - Foreground = owner of the active application window, re-checked before acting. Blinkit/Amazon were kicked back to focus because their screens were never recognised.
+  - Instagram DMs set to Allow permit only the reel opened from the chat; swiping on gives `DmScroll`.
+  - DM reply hint narrowed to "reply to".
+  - Content blocks show an accessibility-overlay banner (`BlockBanner`) instead of the full-screen page, so there's no flash and no feed refresh.
+  - Reels tab is left by tapping `feed_tab`.
+  - `BlockScreenLauncher.showContentBlock` was removed. `BlockOverlayActivity`'s content reasons still exist but are unused.
 - **Known gaps (not fixed yet):**
   - Changing the system clock can end time-based locks early.
   - Safe mode / adb can always remove the app.
@@ -215,3 +224,4 @@
 - 2026-11-05 — Session 1 (cont.): PR #3 merged (27e1912). M4 on `m4/content-blocking`: short-form/website/study rules, Room v3, detectors + ContentGuard + recorder, Block hub with 3 new screens; 74 tests passing; APK builds. In-app detectors unverified (no phone yet).
 - 2026-11-05 — Session 1 (cont.): PR #4 merged (d8eb4b2). M5 on `m5/protection`: protection levels + commitments, protection detector, device admin, window checks, proxy home + chooser, emergency exit, Protection screen; 88 tests passing; APK builds. Not yet tried on a device.
 - 2026-11-05 — Session 1 (cont.): PR #5 merged (5d6e47b). The user chose F13 + F14 + the StevenBlack list (→ M6b). M6 on `m6/insights-schedule`: usage history, insights tab, streaks, schedule + alarms, daily goal, nudges, Today widget; 100 tests passing; APK builds.
+- 2026-11-05 — Session 1 (cont.): first phone tests on realme RMX3840 / Android 16. Three fix rounds on `fix/device-round1` (687dfd9, 9964477, 92621e1) driven by logcat, `uiautomator` dumps and recordings; 115 tests passing; the user confirmed everything tested works. Merged PR #6 and the fix PR into `main`. Next: M6b.
