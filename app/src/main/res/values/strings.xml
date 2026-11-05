@@ -166,6 +166,14 @@
     <string name="browsers_title">Browsers</string>
     <string name="browsers_desc">Arcify reads the address bar of these browsers. Chrome and Brave are set up by default.</string>
     <string name="browsers_add">Add browser</string>
+    <string name="adult_title">Adult-site filter</string>
+    <string name="adult_desc">Blocks about 64,000 adult sites in the browsers above. Your allow rules and study mode don\'t override it; only your own exceptions do.</string>
+    <string name="adult_exceptions">Exceptions</string>
+    <string name="adult_exceptions_empty">No exceptions. If a site is blocked by mistake, add it here.</string>
+    <string name="adult_exception_hint">Site to let through, e.g. example.com</string>
+    <string name="adult_exception_refused">That isn\'t a site, or the filter is locked until midnight.</string>
+    <string name="adult_lock_confirm_body">Until midnight the adult-site filter can\'t be switched off and no exceptions can be added.</string>
+    <string name="adult_credit">List from StevenBlack/hosts (MIT licence).</string>
 
     <!-- Protection -->
     <string name="section_protection">Protection</string>
@@ -281,4 +289,46 @@
     <string name="widget_screen_unlocks">Screen time %1$s · %2$d unlocks</string>
     <string name="widget_start_focus">Start focus</string>
     <string name="widget_open_timer">Open timer</string>
+
+    <!-- Study wake-up alarm (spec F14) -->
+    <string name="channel_wake_alarm">Wake-up alarm</string>
+    <string name="wake_title">Time to study</string>
+    <string name="wake_notification_text">Start a focus session or solve the sums to turn it off.</string>
+    <string name="wake_start_focus">Start %d min focus</string>
+    <string name="wake_snooze">Snooze %1$d min (%2$d left)</string>
+    <string name="wake_solve_instead">Solve sums instead</string>
+    <string name="wake_solve_body">Solve all three to turn the alarm off.</string>
+    <string name="wake_solve_wrong">Not quite. Check your answers.</string>
+    <string name="wake_turn_off">Turn off</string>
+    <string name="wake_section">Wake-up alarms</string>
+    <string name="wake_section_desc">Rings until you start a focus session or solve three sums. Snoozes are limited.</string>
+    <string name="wake_add">Add alarm</string>
+    <string name="wake_none">No alarms.</string>
+    <string name="wake_new">New wake-up alarm</string>
+    <string name="wake_edit">Edit wake-up alarm</string>
+    <string name="wake_days">Days (none = once)</string>
+    <string name="wake_once">Once</string>
+    <string name="wake_snoozes">Snoozes</string>
+    <string name="wake_focus_length">Focus session</string>
+    <string name="wake_item_detail">%2$d × %1$s snooze · %3$s focus</string>
+
+    <!-- Notification batching (spec F13) -->
+    <string name="listener_label">Arcify notification batching</string>
+    <string name="channel_batched">Batched notifications</string>
+    <string name="batched_title">%1$s · %2$d notifications</string>
+    <string name="batched_more">+%d more</string>
+    <string name="section_notifications">Notification batching</string>
+    <string name="section_notifications_summary">Hold notifications from chosen apps and deliver them together.</string>
+    <string name="perm_notification_access">Notification access</string>
+    <string name="perm_notification_access_desc">Lets Arcify hold notifications from the apps you choose.</string>
+    <string name="batching_title">Batch notifications</string>
+    <string name="batching_desc">Calls, alarms, reminders and navigation always come through right away.</string>
+    <string name="batching_interval">Deliver every</string>
+    <string name="batching_every">%s</string>
+    <string name="batching_held">Held now: %d</string>
+    <string name="batching_deliver_now">Deliver now</string>
+    <string name="batching_apps">Batched apps</string>
+    <string name="batching_apps_desc">Only these apps are held. Everything else comes through as usual.</string>
+    <string name="batching_apps_empty">No apps yet.</string>
+    <string name="batching_add">Add app</string>
 </resources>

@@ -111,6 +111,25 @@ class ContentGuardTest {
     }
 
     @Test
+    fun adultFilterBlocksListedSitesEvenWhenAllowedButNotExceptions() = runTest {
+        val guard = ContentGuard(FakeStore(), adultDomains = { setOf("adult-example.com") })
+        val on = baseState.copy(
+            adultFilter = app.arcify.core.content.AdultFilterSettings(enabled = true),
+            websiteRules = listOf(WebsiteRule("adult-example.com", WebsiteRuleKind.ALLOW)),
+            settings = StudyModeSettings(browserStudyMode = true),
+            timer = focusing,
+        )
+        assertEquals(
+            ContentBlock.Website("video.adult-example.com", studyMode = false, adult = true),
+            guard.inspect(chrome, Screens.browser("video.adult-example.com/x"), Screens.PORTRAIT, 0, on),
+        )
+        val excepted = on.copy(adultFilter = on.adultFilter.copy(exceptions = setOf("adult-example.com")))
+        assertNull(guard.inspect(chrome, Screens.browser("adult-example.com"), Screens.PORTRAIT, 0, excepted))
+        val off = on.copy(adultFilter = app.arcify.core.content.AdultFilterSettings(enabled = false))
+        assertNull(guard.inspect(chrome, Screens.browser("adult-example.com"), Screens.PORTRAIT, 0, off))
+    }
+
+    @Test
     fun limitBlocksTheItemAfterN() = runTest {
         val store = FakeStore()
         val guard = ContentGuard(store)

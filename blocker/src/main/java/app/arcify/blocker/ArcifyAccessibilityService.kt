@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
+import app.arcify.blocker.content.AdultDomains
 import app.arcify.blocker.content.BlockBanner
 import app.arcify.blocker.content.ContentBlock
 import app.arcify.blocker.content.ContentGuard
@@ -68,6 +69,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
     @Inject lateinit var appCatalog: AppCatalog
     @Inject lateinit var screens: BlockScreenLauncher
     @Inject lateinit var recorder: SnapshotRecorder
+    @Inject lateinit var adultDomains: AdultDomains
 
     // A failure in one check is logged and must never take the whole service down.
     private val scope = CoroutineScope(
@@ -98,6 +100,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
                 override suspend fun countsToday(platform: Platform) = contentRepository.countsToday(platform)
                 override suspend fun record(sighting: ShortFormSighting) = contentRepository.record(sighting)
             },
+            adultDomains = { adultDomains.domains },
         )
     }
 
@@ -117,15 +120,17 @@ class ArcifyAccessibilityService : AccessibilityService() {
                 evaluate()
             }
         }
+        scope.launch { adultDomains.load() }
         scope.launch {
+            val browsing = combine(contentRepository.observeBrowsers(), contentRepository.adultFilter) { b, a -> b to a }
             combine(
                 contentRepository.observeShortFormRules(),
                 contentRepository.observeWebsiteRules(),
                 contentRepository.observeStudyChannels().map { items -> items.map { it.channel } },
                 contentRepository.studySettings,
-                contentRepository.observeBrowsers(),
-            ) { shortForm, websites, channels, settings, browsers ->
-                ContentState(shortForm, websites, channels, settings, browsers)
+                browsing,
+            ) { shortForm, websites, channels, settings, (browsers, adult) ->
+                ContentState(shortForm, websites, channels, settings, browsers, adultFilter = adult)
             }.collect {
                 contentState = it
                 evaluate()

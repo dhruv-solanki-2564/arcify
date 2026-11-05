@@ -2,6 +2,8 @@ package app.arcify.blocker.content
 
 import app.arcify.blocker.Bounds
 import app.arcify.blocker.NodeSnapshot
+import app.arcify.core.content.AdultFilter
+import app.arcify.core.content.AdultFilterSettings
 import app.arcify.core.content.ContentDefaults
 import app.arcify.core.content.IgSurface
 import app.arcify.core.content.MonitoredBrowser
@@ -33,7 +35,8 @@ sealed interface ContentBlock {
     /** YouTube study mode: this channel isn't on the study list. */
     data class Channel(val channel: String) : ContentBlock
 
-    data class Website(val host: String, val studyMode: Boolean) : ContentBlock
+    /** [adult] is set when the adult-site filter caught it. */
+    data class Website(val host: String, val studyMode: Boolean, val adult: Boolean = false) : ContentBlock
 
     /** DMs are allowed, but only the reel that was sent in the chat: swiping on to others is blocked. */
     data object DmScroll : ContentBlock
@@ -47,6 +50,7 @@ data class ContentState(
     val settings: StudyModeSettings = StudyModeSettings(),
     val browsers: List<MonitoredBrowser> = emptyList(),
     val timer: ActiveTimer? = null,
+    val adultFilter: AdultFilterSettings = AdultFilterSettings(),
 )
 
 /** Where counted items are read from and written to. The repository in production, a fake in tests. */
@@ -65,6 +69,8 @@ class ContentGuard(
     private val shortFormHints: ShortFormHints = DetectorDefaults.shortForm,
     instagramHints: InstagramHints = DetectorDefaults.instagram,
     private val youtubeHints: YouTubeHints = DetectorDefaults.youtube,
+    /** The bundled adult-site list; empty until it has loaded. */
+    private val adultDomains: () -> Set<String> = { emptySet() },
 ) {
     private val deduper = ShortFormDeduper()
     private val igTracker = IgSurfaceTracker(instagramHints)
@@ -122,6 +128,11 @@ class ContentGuard(
         state: ContentState,
     ): ContentBlock? {
         val url = UrlNormalizer.normalize(BrowserUrlDetector.read(root, browser)) ?: return null
+        // The adult filter comes first: no allow rule or study mode lets a listed site through,
+        // only the user's own exceptions.
+        if (state.adultFilter.enabled && AdultFilter.isBlocked(url.host, adultDomains(), state.adultFilter.exceptions)) {
+            return ContentBlock.Website(url.host, studyMode = false, adult = true)
+        }
         val studyMode = StudyModes.browserActive(state.timer, state.settings)
         val site = WebsitePolicy.decide(url, state.websiteRules, studyMode)
         if (site is WebsiteDecision.Blocked) return ContentBlock.Website(site.host, studyMode)

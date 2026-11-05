@@ -21,5 +21,6 @@
     <string name="banner_channel">Arcify: %s isn\'t on your study list</string>
     <string name="banner_website">Arcify: %s is blocked</string>
     <string name="banner_website_study">Arcify: study mode only opens your allowed sites</string>
+    <string name="banner_adult">Arcify: adult site blocked</string>
     <string name="accessibility_service_description">Arcify uses this to see which app is open and, in apps you choose to control (like Instagram, YouTube and your browser), what is on screen. That lets it enforce your app limits, strict focus, Shorts and Reels rules, study modes and blocked websites. Everything is processed on your phone. Nothing is sent anywhere.</string>
 </resources>

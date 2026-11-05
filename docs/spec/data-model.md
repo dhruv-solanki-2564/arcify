@@ -22,7 +22,7 @@ Designed for Arcify from the feature specs. The original's internal schema isn't
 | `ScheduledSession` | id, title, tagId, startTime, durationMin, mode, strict, repeat, date | F9 |
 | `DailyGoal` | minutes | F9 (DataStore) |
 | `StreakDay` | date, kind | F3, F9, F10 |
-| `BatchedNotification` | package, key, postedAt, deliveredAt | F13 |
-| `WakeAlarm` | id, time, days, snoozeLimit | F14 |
+| `HeldNotification` | id, packageName, title, text, postedAt (deleted once delivered) | F13 (Room `held_notification`) |
+| `WakeAlarm` | id, minuteOfDay, daysMask, enabled, snoozesAllowed, snoozeMinutes, focusMinutes | F14 (Room `wake_alarm`) |
 
 Every list-type entity has a bundled default set (`assets/defaults/*.json`). It supports **reset to defaults** and **export/import JSON** (`ListBackup(version, entities…)`).

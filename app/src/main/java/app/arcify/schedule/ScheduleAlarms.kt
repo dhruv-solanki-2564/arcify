@@ -181,6 +181,13 @@ class ScheduleStartReceiver : BroadcastReceiver() {
 class ScheduleRearmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val deps = context.appEntryPoint()
-        runAsync { ScheduleAlarms.rearm(context, deps.scheduleRepository()) }
+        runAsync {
+            ScheduleAlarms.rearm(context, deps.scheduleRepository())
+            // Study wake-up alarms (spec F14) are lost on reboot too.
+            app.arcify.alarm.WakeAlarms.rearm(context, deps.wakeAlarmRepository())
+            // Batched notifications held before a reboot still get delivered.
+            val batching = deps.batchingRepository().settings.first()
+            if (batching.enabled) app.arcify.notify.BatchDelivery.schedule(context, batching.intervalMinutes)
+        }
     }
 }

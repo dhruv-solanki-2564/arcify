@@ -71,8 +71,11 @@ class BlockBanner(private val service: AccessibilityService) {
             service.getString(R.string.banner_shortform_limit, block.limit, service.getString(platformName(block.platform)))
 
         is ContentBlock.Channel -> service.getString(R.string.banner_channel, block.channel)
-        is ContentBlock.Website ->
-            if (block.studyMode) service.getString(R.string.banner_website_study) else service.getString(R.string.banner_website, block.host)
+        is ContentBlock.Website -> when {
+            block.adult -> service.getString(R.string.banner_adult)
+            block.studyMode -> service.getString(R.string.banner_website_study)
+            else -> service.getString(R.string.banner_website, block.host)
+        }
 
         ContentBlock.DmScroll -> service.getString(R.string.banner_dm_scroll)
     }

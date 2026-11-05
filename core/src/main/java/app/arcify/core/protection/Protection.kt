@@ -3,6 +3,7 @@ package app.arcify.core.protection
 import app.arcify.core.block.AppLimit
 import app.arcify.core.block.BlockPolicy
 import app.arcify.core.block.LimitRules
+import app.arcify.core.content.AdultFilterSettings
 import app.arcify.core.content.ShortFormPolicy
 import app.arcify.core.content.ShortFormRule
 import app.arcify.core.content.WebsitePolicy
@@ -55,11 +56,13 @@ object ProtectionRules {
         shortFormRules: List<ShortFormRule>,
         websiteRules: List<WebsiteRule>,
         now: Long,
+        adultFilter: AdultFilterSettings? = null,
     ): Commitments = Commitments(
         strictSession = timer?.strict == true,
         lockedRules = limits.count { LimitRules.isStrict(it, now) } +
             shortFormRules.count { ShortFormPolicy.isStrict(it, now) } +
-            websiteRules.count { WebsitePolicy.isStrict(it, now) },
+            websiteRules.count { WebsitePolicy.isStrict(it, now) } +
+            (if (adultFilter?.isStrict(now) == true) 1 else 0),
     )
 }
 

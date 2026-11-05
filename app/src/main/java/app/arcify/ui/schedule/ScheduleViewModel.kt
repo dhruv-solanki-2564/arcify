@@ -3,7 +3,10 @@ package app.arcify.ui.schedule
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.arcify.alarm.WakeAlarms
+import app.arcify.core.alarm.WakeAlarm
 import app.arcify.core.data.InsightsRepository
+import app.arcify.core.data.WakeAlarmRepository
 import app.arcify.core.data.ScheduleRepository
 import app.arcify.core.data.TimerSettingsRepository
 import app.arcify.core.schedule.Occurrence
@@ -47,6 +50,7 @@ class ScheduleViewModel @Inject constructor(
     insights: InsightsRepository,
     private val settings: TimerSettingsRepository,
     private val clock: WallClock,
+    private val wakeAlarms: WakeAlarmRepository,
 ) : ViewModel() {
 
     private val zone: ZoneId = ZoneId.systemDefault()
@@ -94,6 +98,20 @@ class ScheduleViewModel @Inject constructor(
     fun delete(id: Long) = viewModelScope.launch {
         repository.delete(id)
         ScheduleAlarms.rearm(context, repository)
+    }
+
+    /** Study wake-up alarms (spec F14). */
+    val alarms: StateFlow<List<WakeAlarm>> =
+        wakeAlarms.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun saveAlarm(alarm: WakeAlarm) = viewModelScope.launch {
+        wakeAlarms.save(alarm)
+        WakeAlarms.rearm(context, wakeAlarms)
+    }
+
+    fun deleteAlarm(id: Long) = viewModelScope.launch {
+        wakeAlarms.delete(id)
+        WakeAlarms.rearm(context, wakeAlarms)
     }
 
     fun setGoal(minutes: Int) = viewModelScope.launch { settings.setDailyGoalMinutes(minutes) }
