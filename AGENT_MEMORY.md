@@ -4,9 +4,15 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M2 built and unit-tested (PR from `m2/skeleton-timer`) → **M3 next**: blocking engine + app limits + strict focus
-- **Next step:** after the M2 PR merges, branch `m3/blocking-engine`. Add `ArcifyAccessibilityService` + detectors in `:blocker` (see `docs/spec/blocking-engine.md`), the usage monitor, the block overlay activity, and `AppLimit` rules + tests (F03). Then strict focus (F02: proxy launcher + allowed apps).
-- **Not yet verified on a device:** the M2 APK hasn't been installed anywhere (no phone connected). First thing when a device or emulator is available: install `app-debug.apk`, then start, pause and stop a Pomodoro and check the notification actions.
+- **Current milestone:** M3 built and unit-tested (PR from `m3/blocking-engine`) → **M4 next**: content blocking (Shorts/Reels with IG surfaces, counters and block-after-N; YouTube study list; websites)
+- **Next step:** after the M3 PR merges, branch `m4/content-blocking`.
+  - **M4 really needs a phone:** record accessibility node trees from Instagram (DM / feed / Explore / Reels tab), YouTube (Shorts vs normal video, channel name) and Chrome/Brave (address bar). Write them as JSON test fixtures for the `:blocker` detectors.
+  - Extend the accessibility config: content-changed + scrolled events, `canRetrieveWindowContent=true`, report view IDs.
+- **Not yet verified on a device (M2 + M3):** nothing has been installed anywhere (no phone connected). When a device is available:
+  1. Install `app-debug.apk`.
+  2. Timer: start, pause and stop a Pomodoro, and check the notification actions.
+  3. Block tab: grant Accessibility + Usage access, add a 15-minute limit, use the app until blocked, try "Lock for today".
+  4. Strict Pomodoro: open a non-allowed app, check it's blocked; press Home, check the focus screen returns.
 - **Blockers:** none. Decide F13 (notification batching) / F14 (wake alarm) scope with the user before M6.
 - **For M4:** record real Instagram/YouTube/Chrome/Brave accessibility node trees on a device (needed for IG surfaces + address-bar IDs; the original has no IG-surface logic to learn from).
 - **GitHub:** https://github.com/dhruv-solanki-2564/arcify (public, `main`)
@@ -28,7 +34,7 @@
   - [x] Per-DEX decompile of app code (classes, classes3, classes4; classes4 partial)
   - [x] Trace mechanisms per feature (Shorts detection, protection guards, browser, remote config, c68)
   - [x] Write docs/spec: README, F01–F12, blocking-engine, permissions, data-model, screen-map
-- [ ] **M2 Skeleton + Focus timer** (F1, F12) — code done, awaiting PR merge + on-device check
+- [x] **M2 Skeleton + Focus timer** (F1, F12): merged in PR #2 (925ae15); on-device check still pending
   - [x] Gradle 8.14.3 wrapper, AGP 8.12.0, Kotlin 2.2.10, Compose BOM 2025.08.00, Hilt 2.57, Room 2.7.2
   - [x] Modules `:app` (app.arcify), `:core`, `:blocker`; minSdk 26, compile/target 36
   - [x] `FocusTimer` pure state machine + `SessionRules` + `TimerController`; 17 unit tests passing
@@ -37,7 +43,21 @@
   - [x] `:blocker` `NodeSnapshot` model + 2 tests
   - [x] `assembleDebug` OK → `app/build/outputs/apk/debug/app-debug.apk` (12.4 MB, id `app.arcify.debug`)
   - [ ] Installed and checked on a device
-- [ ] **M3 Blocking engine + App limits + Strict focus** (F2, F3)
+- [ ] **M3 Blocking engine + App limits + Strict focus** (F2, F3): code done, awaiting PR merge + on-device check
+  - [x] `:core`:
+    - `LimitRules` (status, strict-only-tighter), `BlockPolicy` (allow / limit / strict / return-to-focus), `UsageAggregator` (activity events → foreground time).
+    - Room v2 with an auto-migration: `app_limit`, `strict_allowed_app`.
+    - `BlockRepository`.
+  - [x] `:blocker`:
+    - `ArcifyAccessibilityService` (window-state events, 15 s re-check, strict start/end).
+    - `UsageReader`, `AppCatalog` (launchable/home/always-allowed apps, activity filter), `BlockerPermissions`, `BlockScreenLauncher` interface.
+  - [x] `:app`:
+    - `BlockOverlayActivity` (limit / strict screens) and `AppBlockScreenLauncher` (Hilt binding).
+    - Limit-reminder notifications.
+    - Block tab: permissions, limits with lock-for-today, allowed apps with reset.
+  - [x] 38 unit tests passing; `assembleDebug` OK (12.8 MB)
+  - [ ] Installed and checked on a device
+  - Deferred to M5: proxy launcher (`ProxyHomeActivity`) + hard-exit phrase. Deferred to M6: limit streaks, top-3 suggestions
 - [ ] **M4 Content blocking** (F4 incl. Instagram per-surface toggles + reel/shorts counters + block-after-N, F5 default lo-fi study list, F6)
 - [ ] **M5 Block protection** (F7)
 - [ ] **M6 Insights + Schedule + Nudges** (F8, F9, F10)
@@ -58,6 +78,10 @@
 | 2026-11-05 | Timer uses wall-clock timestamps, not tick counting; running session in memory only (kept alive by the FGS) | Simple and drift-free; persisting across process death is a later hardening step |
 | 2026-11-05 | Strict: no pause, no stop during focus; Pomodoro breaks can be stopped; stopwatch never strict | Spec F01/F02 |
 | 2026-11-05 | Debug build uses `applicationIdSuffix .debug` | Lets a debug and a future release build coexist on one phone |
+| 2026-11-05 | Strict focus in M3 uses the accessibility path (Home → back to the focus screen); the proxy launcher moves to M5 | A wrong launcher setup can strand the user without a home screen; it belongs with the protection work |
+| 2026-11-05 | Only strict sessions block apps, and only during focus phases (breaks are free) | Matches the listing's wording; non-strict sessions stay a plain timer |
+| 2026-11-05 | `:blocker` depends on `:core` (api); UI hooks go through the `BlockScreenLauncher` interface bound in `:app` | Engine stays free of screens; detectors stay testable |
+| 2026-11-05 | `QUERY_ALL_PACKAGES` instead of `<queries>` | Needed to tell real app screens from dialogs for any app; sideloaded APK, so no Play policy issue |
 
 ## 4. Environment
 - Repo: `C:\Users\Admin\Projects\arcify` · RE workspace: `C:\Users\Admin\Projects\arcify-re\` (apk/, evidence/, ledger.md)
@@ -77,6 +101,7 @@
   - A standalone Gradle is also installed at `C:\Users\Admin\Tools\gradle-8.14.3`.
   - CI isn't affected.
 - `local.properties` (git-ignored) holds `sdk.dir`.
+- Hilt gotcha: every module that applies the Hilt Gradle plugin needs its own direct `implementation(libs.hilt.android)`. Getting it through `api` from `:core` doesn't count.
 
 ## 5. RE status
 - Spec files done: all (`docs/spec/`). Each fact is tagged `[listing]`/`[manifest]`/`[static]`/`[inferred]`/`[arcify]`.
@@ -96,3 +121,4 @@
 - 2026-11-05 — Session 1 (cont.): user OK'd SDK license; installed platform 36 + build-tools 36. Started M1 on branch `m1/re-spec`: signing, stack and manifest analysed; first whole-APK JADX run stalled (RAM), restarted per DEX.
 - 2026-11-05 — Session 1 (cont.): per-DEX decompile done; traced the blocking mechanisms; wrote the full spec set (17 files); M1 complete, PR opened.
 - 2026-11-05 — Session 1 (cont.): PR #1 merged (f9b9914). M2 on `m2/skeleton-timer`: Gradle project, timer engine + 19 tests passing, foreground timer service, Compose UI; debug APK builds. Hit and worked around the wrapper SSL issue. Not yet tried on a device.
+- 2026-11-05 — Session 1 (cont.): PR #2 merged (925ae15). M3 on `m3/blocking-engine`: limit/block/usage rules, Room v2, accessibility service, block screen, Block tab; 38 tests passing; APK builds. Specs F02/F03 updated. Not yet tried on a device.

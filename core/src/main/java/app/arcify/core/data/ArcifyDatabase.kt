@@ -1,5 +1,6 @@
 package app.arcify.core.data
 
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -63,8 +64,20 @@ interface TagDao {
     fun observeAll(): Flow<List<TagEntity>>
 }
 
-@Database(entities = [TagEntity::class, FocusSessionEntity::class], version = 1, exportSchema = true)
+@Database(
+    entities = [
+        TagEntity::class,
+        FocusSessionEntity::class,
+        AppLimitEntity::class,
+        StrictAllowedAppEntity::class,
+    ],
+    version = 2,
+    exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
 abstract class ArcifyDatabase : RoomDatabase() {
     abstract fun focusSessionDao(): FocusSessionDao
     abstract fun tagDao(): TagDao
+    abstract fun appLimitDao(): AppLimitDao
+    abstract fun strictAllowedAppDao(): StrictAllowedAppDao
 }

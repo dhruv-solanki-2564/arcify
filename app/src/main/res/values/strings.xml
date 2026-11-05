@@ -11,7 +11,6 @@
 
     <!-- Placeholders for features in later milestones -->
     <string name="placeholder_title">Coming soon</string>
-    <string name="placeholder_block">App limits, Shorts and Reels blocking, study modes and block protection arrive in milestones M3 to M5.</string>
     <string name="placeholder_schedule">Planned sessions, repeats and the weekly calendar arrive in milestone M6.</string>
     <string name="placeholder_insights">Screen time, unlocks and reel counts arrive in milestone M6.</string>
     <string name="placeholder_settings">Permissions, editable lists and backups arrive with the features that use them.</string>
@@ -23,7 +22,7 @@
     <string name="minutes_short">%d min</string>
     <string name="pomodoro_summary">%1$d min focus, %2$d min short break, %3$d min long break every %4$d cycles</string>
     <string name="stopwatch_hint">Counts up until you stop it. Strict mode isn\'t available for the stopwatch.</string>
-    <string name="strict_mode">Strict mode: no pausing, and no stopping during focus</string>
+    <string name="strict_mode">Strict mode: no pausing or stopping during focus, and only allowed apps open (needs Accessibility, see Block tab)</string>
     <string name="start">Start</string>
     <string name="focus_today">Focused today: %s</string>
 
@@ -49,4 +48,46 @@
     <string name="alert_back_to_focus">Break is over. Back to focus.</string>
     <string name="alert_session_done">Session complete</string>
     <string name="alert_session_done_text">You focused for %s.</string>
+
+    <!-- Block screen (shown over a blocked app) -->
+    <string name="block_limit_title">Time\'s up for %s</string>
+    <string name="block_limit_body">You\'ve used %1$s of your %2$s daily limit. It resets at midnight.</string>
+    <string name="block_close_app">Close app</string>
+    <string name="block_strict_title">Stay with your focus</string>
+    <string name="block_strict_body">%s isn\'t on your allowed list for strict focus.</string>
+    <string name="block_strict_remaining">Focus time left: %s</string>
+    <string name="block_back_to_focus">Back to focus</string>
+    <string name="channel_limits">App limit reminders</string>
+    <string name="limit_reminder_title">%s is close to its limit</string>
+    <string name="limit_reminder_text">%1$s used of %2$s today.</string>
+
+    <!-- Block tab -->
+    <string name="block_permissions_title">Permissions</string>
+    <string name="perm_accessibility">Accessibility</string>
+    <string name="perm_accessibility_desc">Lets Arcify see which app is open so it can block it. Needed for limits and strict focus. Nothing leaves your phone.</string>
+    <string name="perm_usage">Usage access</string>
+    <string name="perm_usage_desc">Lets Arcify read how long you\'ve used each app today. Needed for limits.</string>
+    <string name="perm_on">On</string>
+    <string name="perm_turn_on">Turn on</string>
+    <string name="limits_title">Daily app limits</string>
+    <string name="limits_empty">No limits yet. Add one for an app that eats your time.</string>
+    <string name="limits_add">Add limit</string>
+    <string name="limit_usage">%1$s of %2$s today</string>
+    <string name="limit_locked_until_midnight">Locked until midnight</string>
+    <string name="limit_lock">Lock for today</string>
+    <string name="limit_lock_confirm_title">Lock this limit until midnight?</string>
+    <string name="limit_lock_confirm_body">Until midnight you won\'t be able to remove, loosen or switch off the limit for %s. You can still make it stricter.</string>
+    <string name="limit_locked_message">This limit is locked until midnight.</string>
+    <string name="confirm_lock">Lock</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="remove">Remove</string>
+    <string name="pick_app_title">Choose an app</string>
+    <string name="pick_limit_title">Daily limit for %s</string>
+    <string name="loading_apps">Loading apps…</string>
+    <string name="allowed_title">Allowed during strict focus</string>
+    <string name="allowed_desc">Calls, texts, keyboards and Arcify always work. Add any other apps you need while focusing, like a dictionary or notes.</string>
+    <string name="allowed_empty">No extra apps allowed.</string>
+    <string name="allowed_add">Add app</string>
+    <string name="allowed_reset">Reset to defaults</string>
 </resources>

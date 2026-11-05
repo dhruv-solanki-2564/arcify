@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import app.arcify.R
+import app.arcify.ui.block.BlockRoute
 import app.arcify.ui.focus.FocusRoute
 
 private enum class TopLevel(val route: String, @param:StringRes val label: Int, val icon: ImageVector) {
@@ -66,7 +67,7 @@ fun ArcifyRoot() {
             modifier = Modifier.padding(padding),
         ) {
             composable(TopLevel.FOCUS.route) { FocusRoute() }
-            composable(TopLevel.BLOCK.route) { PlaceholderScreen(R.string.nav_block, R.string.placeholder_block) }
+            composable(TopLevel.BLOCK.route) { BlockRoute() }
             composable(TopLevel.SCHEDULE.route) {
                 PlaceholderScreen(R.string.nav_schedule, R.string.placeholder_schedule)
             }

@@ -6,8 +6,10 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import app.arcify.core.data.AppLimitDao
 import app.arcify.core.data.ArcifyDatabase
 import app.arcify.core.data.FocusSessionDao
+import app.arcify.core.data.StrictAllowedAppDao
 import app.arcify.core.data.TagDao
 import app.arcify.core.timer.WallClock
 import dagger.Module
@@ -31,6 +33,12 @@ object CoreModule {
 
     @Provides
     fun tagDao(db: ArcifyDatabase): TagDao = db.tagDao()
+
+    @Provides
+    fun appLimitDao(db: ArcifyDatabase): AppLimitDao = db.appLimitDao()
+
+    @Provides
+    fun strictAllowedAppDao(db: ArcifyDatabase): StrictAllowedAppDao = db.strictAllowedAppDao()
 
     @Provides
     @Singleton
