@@ -199,11 +199,11 @@
     <string name="launcher_chooser_body">Arcify needs to know which launcher to open when you press Home outside strict focus.</string>
     <string name="launcher_open_home_settings">Open default home app settings</string>
     <string name="hard_exit_title">Emergency exit</string>
-    <string name="hard_exit_desc">Optional. Ends a strict session early after you type: \"%s\". Off by default, and can only be turned on when nothing is committed.</string>
+    <string name="hard_exit_desc">Optional. Ends a strict session early after you type a new random %d-character code of capital letters, small letters and digits. Off by default, and can only be turned on when nothing is committed.</string>
     <string name="hard_exit_button">Emergency exit</string>
     <string name="hard_exit_dialog_title">End this strict session?</string>
-    <string name="hard_exit_dialog_body">Type this sentence exactly to end the session early:</string>
-    <string name="hard_exit_wrong">That doesn\'t match. Take a breath and check the sentence.</string>
+    <string name="hard_exit_dialog_body">Type this %d-character code exactly (capitals matter; the spaces are only for reading):</string>
+    <string name="hard_exit_wrong">That doesn\'t match. Check capitals and digits and try again.</string>
     <string name="hard_exit_confirm">End session</string>
     <string name="block_protection_title">Protection is on</string>
     <string name="block_protection_uninstall">Arcify can\'t be uninstalled while you\'re committed. Try again once your strict session and locked rules have ended.</string>
@@ -218,7 +218,8 @@
     <string name="insights_unknown">not available on this phone</string>
     <string name="insights_shortform">Reels &amp; Shorts watched: %d</string>
     <string name="insights_week">Last 7 days</string>
-    <string name="insights_week_hint">Bars show screen time by category; the time underneath is focus.</string>
+    <string name="insights_week_hint">Bars and the first number show screen time by category. Focus time is shown below it on days you focused.</string>
+    <string name="insights_week_focus">focus %s</string>
     <string name="insights_streaks">Streaks</string>
     <string name="insights_streak_row">%1$s: %2$d days (best %3$d)</string>
     <string name="streak_focus">Focus goal met</string>

@@ -182,7 +182,14 @@ private fun WeekChart(days: List<DayBar>) {
                     day.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                     style = MaterialTheme.typography.labelSmall,
                 )
-                Text(formatShortDuration(day.focusMs), style = MaterialTheme.typography.labelSmall)
+                Text(formatShortDuration(day.split.totalMs), style = MaterialTheme.typography.labelSmall)
+                if (day.focusMs > 0) {
+                    Text(
+                        stringResource(R.string.insights_week_focus, formatShortDuration(day.focusMs)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
     }

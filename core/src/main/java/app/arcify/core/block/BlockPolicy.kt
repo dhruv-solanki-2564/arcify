@@ -30,6 +30,9 @@ object BlockPolicy {
      * @param launcherPackages home-screen apps.
      * @param limit the foreground app's limit, if it has one.
      * @param usedMs the foreground app's usage today.
+     * @param userFacing whether the foreground package is an app with a launcher icon. Strict
+     *   focus only blocks those: system screens without an icon (settings sub-pages, permission
+     *   dialogs, OEM helpers) open from inside allowed apps and must keep working.
      */
     fun decide(
         foreground: String,
@@ -38,12 +41,13 @@ object BlockPolicy {
         focus: FocusLock?,
         limit: AppLimit?,
         usedMs: Long,
+        userFacing: Boolean = true,
     ): BlockDecision {
         if (foreground in alwaysAllowed) return BlockDecision.Allow
         val isLauncher = foreground in launcherPackages
         if (focus != null) {
             if (isLauncher) return BlockDecision.ReturnToFocus
-            if (foreground !in focus.allowedPackages) return BlockDecision.StrictFocus(foreground)
+            if (userFacing && foreground !in focus.allowedPackages) return BlockDecision.StrictFocus(foreground)
         }
         if (isLauncher) return BlockDecision.Allow
         if (limit != null && LimitRules.status(limit, usedMs) == LimitStatus.REACHED) {

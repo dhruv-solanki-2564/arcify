@@ -77,6 +77,52 @@ class DetectorsTest {
         assertNull(BrowserUrlDetector.read(Screens.browser("x.com", pkg = "com.other"), chrome))
     }
 
+    /** Mirrors the YouTube Shorts layout seen on a real phone: `reel_…` controls, no visible like column. */
+    private fun youtubeShorts(progress: String) = NodeSnapshot(
+        bounds = Screens.PORTRAIT,
+        children = listOf(
+            NodeSnapshot(viewId = "com.google.android.youtube:id/reel_play_pause_button", contentDescription = "Pause video", bounds = Bounds(479, 1084, 601, 1206)),
+            NodeSnapshot(viewId = "com.google.android.youtube:id/reel_next_reel_button", contentDescription = "Next Video", bounds = Bounds(479, 1206, 601, 1328)),
+            NodeSnapshot(contentDescription = "Shorts", selected = true, bounds = Bounds(270, 2178, 540, 2300)),
+            NodeSnapshot(contentDescription = progress, bounds = Bounds(0, 2116, 1080, 2238)),
+            NodeSnapshot(text = "Cooking a quick pasta", bounds = Bounds(40, 1900, 700, 1960)),
+        ),
+    )
+
+    @Test
+    fun youtubeShortsAreRecognisedByTheirReelControls() {
+        val early = ShortFormDetector.detect(youtubeShorts("0 minutes 6 seconds of 0 minutes 23 seconds"), Screens.PORTRAIT, hints)
+        val later = ShortFormDetector.detect(youtubeShorts("0 minutes 9 seconds of 0 minutes 23 seconds"), Screens.PORTRAIT, hints)
+        assertNotNull(early)
+        // The ticking progress label must not make one Short look like a new one.
+        assertEquals(early!!.itemKey, later!!.itemKey)
+    }
+
+    @Test
+    fun aRegularYoutubeVideoIsNotShortForm() {
+        val watch = NodeSnapshot(
+            bounds = Screens.PORTRAIT,
+            children = listOf(
+                NodeSnapshot(viewId = "com.google.android.youtube:id/watch_player", contentDescription = "Video player", bounds = Bounds(0, 112, 1080, 720)),
+                NodeSnapshot(contentDescription = "like this video along with 3,481,707 other people", bounds = Bounds(555, 910, 660, 1032)),
+                NodeSnapshot(contentDescription = "Dislike this video", bounds = Bounds(660, 910, 765, 1032)),
+                NodeSnapshot(contentDescription = "Share", bounds = Bounds(765, 910, 870, 1032)),
+            ),
+        )
+        assertNull(ShortFormDetector.detect(watch, Screens.PORTRAIT, hints))
+    }
+
+    @Test
+    fun youtubeChannelIsReadFromTheSubscribeButton() {
+        val page = NodeSnapshot(
+            children = listOf(
+                NodeSnapshot(contentDescription = "Lofi Girl, Official Artist Channel 15.8m subscribers"),
+                NodeSnapshot(contentDescription = "Subscribe to Lofi Girl."),
+            ),
+        )
+        assertEquals("Lofi Girl", YouTubeChannelDetector.channelOnWatchPage(page, DetectorDefaults.youtube))
+    }
+
     @Test
     fun youtubeChannelIsReadFromItsLabel() {
         val page = NodeSnapshot(children = listOf(NodeSnapshot(contentDescription = "Go to channel Lofi Girl")))

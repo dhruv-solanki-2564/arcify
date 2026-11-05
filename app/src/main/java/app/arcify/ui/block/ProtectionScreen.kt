@@ -130,7 +130,7 @@ fun ProtectionRoute(viewModel: ProtectionViewModel = hiltViewModel()) {
         item {
             ToggleRow(
                 title = stringResource(R.string.hard_exit_title),
-                description = stringResource(R.string.hard_exit_desc, HardExit.PHRASE),
+                description = stringResource(R.string.hard_exit_desc, HardExit.CODE_LENGTH),
                 checked = ui.settings.hardExitEnabled,
                 onCheckedChange = viewModel::setHardExit,
             )

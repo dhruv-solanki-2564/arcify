@@ -52,6 +52,20 @@ class BlockPolicyTest {
     }
 
     @Test
+    fun systemScreensWithoutALauncherIconAreNeverBlockedByStrictFocus() {
+        val decision = BlockPolicy.decide(
+            foreground = "com.oplus.battery",
+            alwaysAllowed = setOf(own),
+            launcherPackages = setOf(launcher),
+            focus = FocusLock(allowedPackages = setOf("com.android.settings")),
+            limit = null,
+            usedMs = 0,
+            userFacing = false,
+        )
+        assertEquals(BlockDecision.Allow, decision)
+    }
+
+    @Test
     fun homeScreenDuringStrictFocusReturnsToFocus() {
         assertEquals(BlockDecision.ReturnToFocus, decide(launcher, FocusLock(emptySet())))
         assertEquals(BlockDecision.Allow, decide(launcher))

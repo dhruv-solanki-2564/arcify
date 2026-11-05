@@ -16,6 +16,11 @@ data class ShortFormHints(
     val notShortFormViewIds: List<String> = emptyList(),
     /** How many of those controls must be stacked on the right edge. */
     val minControls: Int = 3,
+    /**
+     * View-ID prefixes that only exist inside a short-form player (e.g. YouTube's `reel_…`
+     * controls). Any visible match counts as a player, even without the control column.
+     */
+    val playerViewIdPrefixes: List<String> = emptyList(),
 )
 
 data class DetectedShortForm(val itemKey: String)
@@ -39,20 +44,28 @@ object ShortFormDetector {
         val controls = nodes.filter { node ->
             node.bounds.centerX >= rightEdge && node.label?.let { isControlLabel(it, hints.controlWords) } == true
         }
-        if (stackedRows(controls, screen) < hints.minControls) return null
-        val span = controls.maxOf { it.bounds.bottom } - controls.minOf { it.bounds.top }
-        if (span < screen.height * MIN_COLUMN_SPAN_SHARE) return null
+        val hasMarker = hints.playerViewIdPrefixes.isNotEmpty() && nodes.any { node ->
+            node.viewId?.let { id -> hints.playerViewIdPrefixes.any { id.startsWith(it) } } == true
+        }
+        if (!hasMarker && !isControlColumn(controls, screen, hints)) return null
 
         // An item's identity: caption/author text in the lower-left area. It changes when the
-        // user swipes to the next item, but not while one item plays.
+        // user swipes to the next item, but not while one item plays. Ticking progress text
+        // ("0 minutes 6 seconds of …") and pure numbers (like counts) are left out.
         val controlSet = controls.toSet()
         val signature = nodes.asSequence()
             .filter { it !in controlSet && it.bounds.centerX < rightEdge && it.bounds.top > screen.top + screen.height / 2 }
             .mapNotNull { it.label?.trim() }
-            .filter { it.length >= 2 && it.any(Char::isLetter) }
+            .filter { it.length >= 2 && it.any(Char::isLetter) && !PROGRESS.containsMatchIn(it.lowercase()) }
             .take(SIGNATURE_PARTS)
             .joinToString("|")
         return DetectedShortForm(if (signature.isEmpty()) "unknown" else Integer.toHexString(signature.hashCode()))
+    }
+
+    private fun isControlColumn(controls: List<NodeSnapshot>, screen: Bounds, hints: ShortFormHints): Boolean {
+        if (stackedRows(controls, screen) < hints.minControls) return false
+        val span = controls.maxOf { it.bounds.bottom } - controls.minOf { it.bounds.top }
+        return span >= screen.height * MIN_COLUMN_SPAN_SHARE
     }
 
     fun isControlLabel(label: String, words: Set<String>): Boolean =
@@ -73,6 +86,7 @@ object ShortFormDetector {
     }
 
     private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
+    private val PROGRESS = Regex("\\d+ (minutes?|seconds?)\\b.*\\bof\\b")
     private const val RIGHT_EDGE_SHARE = 0.72
     private const val MIN_COLUMN_SPAN_SHARE = 0.15
     private const val MIN_ROW_GAP_SHARE = 0.02
@@ -152,7 +166,8 @@ object YouTubeChannelDetector {
             val description = node.contentDescription?.trim() ?: continue
             val prefix = hints.channelDescriptionPrefixes.firstOrNull { description.lowercase().startsWith(it) }
             if (prefix != null) {
-                description.substring(prefix.length).trim().trimStart(',', ':').trim().takeIf { it.isNotEmpty() }?.let { return it }
+                description.substring(prefix.length).trim().trimStart(',', ':').trimEnd('.').trim()
+                    .takeIf { it.isNotEmpty() }?.let { return it }
             }
         }
         return null
@@ -166,6 +181,14 @@ object DetectorDefaults {
             "like", "likes", "liked", "dislike", "comment", "comments",
             "share", "shares", "send", "remix", "save", "favorite",
         ),
+        // Seen on a real phone (YouTube 2026): Shorts controls are `reel_…` views. Instagram's
+        // reels viewer uses `clips_…` views internally (to be confirmed with the recorder).
+        playerViewIdPrefixes = listOf(
+            "com.google.android.youtube:id/reel_",
+            "com.instagram.android:id/clips_",
+        ),
+        // The long-form YouTube player.
+        notShortFormViewIds = listOf("com.google.android.youtube:id/watch_player"),
     )
 
     val instagram = InstagramHints(
@@ -180,6 +203,7 @@ object DetectorDefaults {
 
     val youtube = YouTubeHints(
         channelViewIdFragments = listOf(":id/channel_name", ":id/owner_name"),
-        channelDescriptionPrefixes = listOf("go to channel"),
+        // Seen on a real phone: a watch page has a "Subscribe to <channel>." button.
+        channelDescriptionPrefixes = listOf("subscribe to ", "unsubscribe from ", "go to channel"),
     )
 }

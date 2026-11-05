@@ -8,6 +8,9 @@ import app.arcify.core.content.ShortFormRule
 import app.arcify.core.content.WebsitePolicy
 import app.arcify.core.content.WebsiteRule
 import app.arcify.core.timer.ActiveTimer
+import java.security.SecureRandom
+import kotlin.random.Random
+import kotlin.random.asKotlinRandom
 
 /** How hard Arcify defends itself against being switched off or uninstalled (spec F07). */
 enum class ProtectionLevel { OFF, DURING_COMMITMENTS, ALWAYS }
@@ -60,15 +63,31 @@ object ProtectionRules {
     )
 }
 
-/** The optional emergency exit for strict sessions: type a phrase to end early (spec F02). */
+/**
+ * The optional emergency exit for strict sessions (spec F02): the user must type a fresh random
+ * code to end early. A new code each time means it can't be memorised or kept in a note, so
+ * breaking a session always takes deliberate effort.
+ */
 object HardExit {
-    const val PHRASE = "I am choosing to end my focus session early"
+    const val CODE_LENGTH = 24
 
-    /** Case and extra spaces don't matter, and a final full stop is optional. Everything else must match. */
-    fun matches(input: String, phrase: String = PHRASE): Boolean = normalize(input) == normalize(phrase)
+    // Upper case, lower case and digits, without look-alikes (0/O/o, 1/l/I) so the code is fair to type.
+    private const val UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    private const val LOWER = "abcdefghijkmnpqrstuvwxyz"
+    private const val DIGITS = "23456789"
+    private const val ALPHABET = UPPER + LOWER + DIGITS
 
-    private fun normalize(text: String): String =
-        text.trim().trimEnd('.').trim().lowercase().replace(Regex("\\s+"), " ")
+    /** A random code of [length] characters with at least one capital, one small letter and one digit. */
+    fun newCode(length: Int = CODE_LENGTH, random: Random = SecureRandom().asKotlinRandom()): String {
+        require(length >= 3) { "length must be at least 3" }
+        while (true) {
+            val code = String(CharArray(length) { ALPHABET[random.nextInt(ALPHABET.length)] })
+            if (code.any { it in UPPER } && code.any { it in LOWER } && code.any { it in DIGITS }) return code
+        }
+    }
+
+    /** Exact match, case-sensitive. Only surrounding spaces are ignored. */
+    fun matches(input: String, code: String): Boolean = input.trim() == code
 }
 
 sealed interface HomeRoute {

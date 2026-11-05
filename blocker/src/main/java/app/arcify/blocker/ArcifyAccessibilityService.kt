@@ -28,6 +28,8 @@ import app.arcify.core.timer.TimerController
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.ZoneId
 import javax.inject.Inject
+import app.arcify.blocker.protection.Threat
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -64,7 +66,10 @@ class ArcifyAccessibilityService : AccessibilityService() {
     @Inject lateinit var screens: BlockScreenLauncher
     @Inject lateinit var recorder: SnapshotRecorder
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // A failure in one check is logged and must never take the whole service down.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, e -> Diag.error("engine error", e) },
+    )
     private var limits: Map<String, AppLimit> = emptyMap()
     private var allowedApps: Set<String> = emptySet()
     private var alwaysAllowed: Set<String> = emptySet()
@@ -93,6 +98,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         refreshSpecialApps()
+        Diag.log("service connected; launchers=$launchers")
         scope.launch {
             blockRepository.observeLimits().collect { list ->
                 limits = list.associateBy { it.packageName }
@@ -149,14 +155,18 @@ class ArcifyAccessibilityService : AccessibilityService() {
             return
         }
         val pkg = event.packageName?.toString() ?: return
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            (pkg in launchers || appCatalog.isActivity(pkg, event.className?.toString())) &&
-            pkg != foreground
-        ) {
-            foreground = pkg
-            evaluate()
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val cls = event.className?.toString()
+            val isScreen = pkg in launchers || appCatalog.isActivity(pkg, cls)
+            if (isScreen && pkg != foreground) {
+                Diag.log("foreground $foreground -> $pkg ($cls)")
+                foreground = pkg
+                evaluate()
+            }
         }
-        if (pkg == foreground && needsScreenCheck(pkg)) scheduleScreenCheck(pkg)
+        // Content is checked for whichever monitored app owns the active window; the
+        // active-window root is verified again before inspecting.
+        if (needsScreenCheck(pkg)) scheduleScreenCheck(pkg)
     }
 
     override fun onInterrupt() = Unit
@@ -178,6 +188,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
         evaluation?.cancel()
         evaluation = scope.launch {
             val (decision, limit, usedMs) = decide(pkg)
+            if (decision != BlockDecision.Allow) Diag.log("decision for $pkg: $decision")
             when (decision) {
                 BlockDecision.Allow -> if (limit != null) remindIfClose(limit, usedMs)
                 BlockDecision.ReturnToFocus -> screens.returnToFocus()
@@ -192,7 +203,16 @@ class ArcifyAccessibilityService : AccessibilityService() {
         val limit = limits[pkg]?.takeIf { it.enabled }
         val usedMs = if (limit != null) withContext(Dispatchers.IO) { usageReader.usedTodayMs(pkg) } else 0L
         val focus = BlockPolicy.focusLock(timerController.timer.value, allowedApps + studyModeApps())
-        return Verdict(BlockPolicy.decide(pkg, alwaysAllowed, launchers, focus, limit, usedMs), limit, usedMs)
+        val decision = BlockPolicy.decide(
+            foreground = pkg,
+            alwaysAllowed = alwaysAllowed,
+            launcherPackages = launchers,
+            focus = focus,
+            limit = limit,
+            usedMs = usedMs,
+            userFacing = appCatalog.isUserFacing(pkg),
+        )
+        return Verdict(decision, limit, usedMs)
     }
 
     /** With a study mode on, YouTube or the browsers stay usable during strict focus; their content is policed instead. */
@@ -240,8 +260,11 @@ class ArcifyAccessibilityService : AccessibilityService() {
     // ---- Screen content ----
 
     private fun needsScreenCheck(pkg: String): Boolean =
-        guard.monitors(pkg, contentState) ||
-            (protectionActive && ProtectionDetector.guards(pkg, ProtectionDetector.DEFAULT_HINTS))
+        guard.monitors(pkg, contentState) || (protectionActive && guardsForProtection(pkg))
+
+    /** Installer, settings and store screens, plus home-screen apps (their own uninstall dialogs). */
+    private fun guardsForProtection(pkg: String): Boolean =
+        pkg in launchers || ProtectionDetector.guards(pkg, ProtectionDetector.DEFAULT_HINTS)
 
     /** Throttles screen inspection to one per [SCREEN_INTERVAL_MS], always running the latest. */
     private fun scheduleScreenCheck(pkg: String) {
@@ -255,26 +278,41 @@ class ArcifyAccessibilityService : AccessibilityService() {
     }
 
     private suspend fun inspectScreen(pkg: String) {
-        if (pkg != foreground) return
-        val root = rootInActiveWindow ?: return
-        if (root.packageName?.toString() != pkg) return
+        val root = rootInActiveWindow
+        val rootPkg = root?.packageName?.toString()
+        if (root == null || rootPkg != pkg) {
+            Diag.log("skip $pkg: active window is ${rootPkg ?: "none"}")
+            return
+        }
         val snapshot = NodeSnapshots.capture(root)
         val now = timerController.now()
 
-        if (protectionActive && ProtectionDetector.guards(pkg, ProtectionDetector.DEFAULT_HINTS)) {
-            val threat = ProtectionDetector.detect(pkg, snapshot, appLabel, serviceLabel, ProtectionDetector.DEFAULT_HINTS)
+        if (protectionActive && guardsForProtection(pkg)) {
+            val threat = ProtectionDetector.detect(
+                pkg,
+                snapshot,
+                appLabel,
+                serviceLabel,
+                ProtectionDetector.DEFAULT_HINTS,
+                launcherPackages = launchers,
+            )
             if (threat != null) {
-                performGlobalAction(GLOBAL_ACTION_HOME)
+                Diag.log("protection: $threat in $pkg")
+                // Back cancels an uninstall dialog; Home leaves a settings or store page.
+                performGlobalAction(if (threat == Threat.UNINSTALL) GLOBAL_ACTION_BACK else GLOBAL_ACTION_HOME)
                 screens.showProtection(threat)
+                return
             }
-            return
+            if (!guard.monitors(pkg, contentState)) return
         }
 
         if (recorderOn) withContext(Dispatchers.IO) { recorder.save(pkg, snapshot, now) }
         val metrics = resources.displayMetrics
         val screen = Bounds(0, 0, metrics.widthPixels, metrics.heightPixels)
         val state = contentState.copy(timer = timerController.timer.value)
-        val block = guard.inspect(pkg, snapshot, screen, now, state) ?: return
+        val block = guard.inspect(pkg, snapshot, screen, now, state)
+        Diag.log("content $pkg: ${snapshot.walk().count()} nodes, browsers=${state.browsers.size}, block=$block")
+        if (block == null) return
         performGlobalAction(GLOBAL_ACTION_BACK)
         screens.showContentBlock(block, pkg)
     }

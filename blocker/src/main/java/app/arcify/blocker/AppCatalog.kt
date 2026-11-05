@@ -24,6 +24,7 @@ class AppCatalog @Inject constructor(
     private val pm: PackageManager get() = context.packageManager
     private val activityCache = ConcurrentHashMap<String, Boolean>()
     private val categoryCache = ConcurrentHashMap<String, AppCategory>()
+    private val launchableCache = ConcurrentHashMap<String, Boolean>()
 
     /** Apps with a launcher icon, except Arcify, sorted by name. */
     fun launchableApps(): List<InstalledApp> {
@@ -81,7 +82,17 @@ class AppCatalog @Inject constructor(
         context.getSystemService(InputMethodManager::class.java)
             ?.enabledInputMethodList
             ?.forEach { allowed += it.packageName }
+        allowed += CALL_AND_MESSAGE_PACKAGES
         return allowed
+    }
+
+    /**
+     * Whether a package is an app the user opens from the launcher. Strict focus only blocks
+     * these; system screens without an icon (OEM settings pages, permission dialogs, helpers that
+     * allowed apps open) are never blocked.
+     */
+    fun isUserFacing(packageName: String): Boolean = launchableCache.getOrPut(packageName) {
+        pm.getLaunchIntentForPackage(packageName) != null
     }
 
     /**
@@ -106,6 +117,19 @@ class AppCatalog @Inject constructor(
             "com.android.phone",
             "com.android.server.telecom",
             "com.android.emergency",
+        )
+
+        /** Common phone, in-call, contacts and messaging apps, so calls and texts always work even if not the default. */
+        val CALL_AND_MESSAGE_PACKAGES = setOf(
+            "com.google.android.dialer",
+            "com.android.dialer",
+            "com.android.incallui",
+            "com.google.android.contacts",
+            "com.android.contacts",
+            "com.google.android.apps.messaging",
+            "com.android.mms",
+            "com.samsung.android.dialer",
+            "com.samsung.android.messaging",
         )
     }
 }

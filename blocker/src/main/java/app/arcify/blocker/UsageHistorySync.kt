@@ -23,7 +23,10 @@ class UsageHistorySync @Inject constructor(
     private val clock: WallClock,
 ) {
     suspend fun sync(days: Int = 7) = withContext(Dispatchers.IO) {
-        if (!reader.hasAccess()) return@withContext
+        if (!reader.hasAccess()) {
+            Diag.log("usage sync skipped: no usage access")
+            return@withContext
+        }
         val zone = ZoneId.systemDefault()
         val now = clock.nowMs()
         val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
@@ -36,6 +39,7 @@ class UsageHistorySync @Inject constructor(
             val usage = reader.usage(start, end)
             if (!alwaysRefresh && usage.apps.isEmpty()) continue
             insights.saveDay(start, usage.apps, usage.unlocks)
+            Diag.log("usage sync $date: ${usage.apps.size} apps, ${usage.apps.values.sumOf { it.foregroundMs } / 60_000} min, unlocks=${usage.unlocks}")
         }
     }
 }
