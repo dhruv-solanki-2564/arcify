@@ -4,19 +4,22 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M0 — Bootstrap (in progress)
-- **Next step:** user runs `gh auth login`, gives git display name and the Regain APK path → create GitHub repo `arcify`, push initial commit → start M1 (RE → spec).
-- **Blockers:** waiting on user for GitHub auth, git name, APK file.
+- **Current milestone:** M0 almost done → M1 next
+- **Next step:** (a) once the user OKs it, accept the Android SDK licenses and install `platforms;android-36`, `build-tools;36.0.0`, `platform-tools`. (b) Start M1: extract `base.apk` from the APKS in `arcify-re\apk\` and run REA (`inspect_apk_signature` → `inspect_android_package` → `decode_android_resources` → stack check → per-feature traces).
+- **Blockers:** the SDK license acceptance needs the user's explicit OK.
+- **GitHub:** https://github.com/dhruv-solanki-2564/arcify (public, `main`)
+- **APK under study:** `Regain-Study-Timer-for-Focus_73.6.2089_apkcube.apks` (v73.6.2089). It's a split bundle: `base.apk` (67.7 MB) + `split_config.arm64_v8a` + density splits. Copied to `arcify-re\apk\`.
 
 ## 2. Milestone checklist
 - [ ] **M0 Bootstrap**
   - [x] Identify target: `ai.regainapp` — "Regain: Study Timer for Focus", EpowerX Labs
   - [x] Install GitHub CLI (winget, v2.103.3)
-  - [ ] Android SDK cmdline-tools + platform/build-tools (`%LOCALAPPDATA%\Android\Sdk`)
-  - [ ] JADX 1.5.6 (`C:\Users\Admin\Tools\jadx-1.5.6`)
+  - [x] Android SDK cmdline-tools 16111833 (`%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest`)
+  - [ ] SDK licenses + platform/build-tools (awaiting user OK)
+  - [ ] JADX 1.5.6 (`C:\Users\Admin\Tools\jadx-1.5.6`); download was in flight at the end of session 1, so verify `bin\jadx.bat` exists
   - [x] Local repo scaffold (`C:\Users\Admin\Projects\arcify`), GPL-3.0 LICENSE
-  - [ ] git identity (email dhruv2004solanki@gmail.com, name TBD)
-  - [ ] GitHub repo `arcify` (public) created + pushed
+  - [x] git identity: Dhruv Solanki <dhruv2004solanki@gmail.com> (repo-local)
+  - [x] GitHub repo created and pushed: dhruv-solanki-2564/arcify (gh logged in as dhruv-solanki-2564)
 - [ ] **M1 RE → spec** (F1–F12 spec files, screen map, data model, permissions, ledger)
 - [ ] **M2 Skeleton + Focus timer** (F1, F12)
 - [ ] **M3 Blocking engine + App limits + Strict focus** (F2, F3)
@@ -53,4 +56,4 @@
 - Ledger: `C:\Users\Admin\Projects\arcify-re\ledger.md` (create in M1)
 
 ## 6. Session log
-- 2026-11-05 — Session 1: identified target, planned milestones, installed gh, scaffolded repo + memory file. (no commit yet)
+- 2026-11-05 — Session 1: identified target, planned milestones, installed gh, scaffolded repo + memory file, created GitHub repo, installed cmdline-tools, received APKS v73.6.2089. Commits c29f323 + memory update.
