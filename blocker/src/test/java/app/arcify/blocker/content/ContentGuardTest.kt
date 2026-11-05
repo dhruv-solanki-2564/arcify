@@ -83,8 +83,13 @@ class ContentGuardTest {
             ),
         )
         guard.inspect(instagram, Screens.instagramDmThread(), Screens.PORTRAIT, 0, state)
-        assertNull(guard.inspect(instagram, Screens.shortFormPlayer("friend's reel"), Screens.PORTRAIT, 100, state))
+        assertNull(guard.inspect(instagram, Screens.dmSharedReel("friend's reel"), Screens.PORTRAIT, 100, state))
         assertEquals(IgSurface.DM, store.recorded.single().surface)
+        // Swiping on from the shared reel into suggested reels is the Reels feed: blocked.
+        assertEquals(
+            ContentBlock.ShortForm(Platform.INSTAGRAM, IgSurface.REELS_TAB),
+            guard.inspect(instagram, Screens.suggestedReel("suggested"), Screens.PORTRAIT, 150, state),
+        )
 
         guard.inspect(instagram, Screens.instagramExplore(), Screens.PORTRAIT, 200, state)
         assertEquals(

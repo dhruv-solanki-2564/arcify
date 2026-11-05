@@ -93,53 +93,89 @@ object ShortFormDetector {
     private const val SIGNATURE_PARTS = 6
 }
 
-/** Tuning for [IgSurfaceTracker]. Defaults are unverified starting points. */
+/**
+ * Tuning for [IgSurfaceTracker], based on recordings from a real phone (Instagram, Nov 2026).
+ */
 data class InstagramHints(
-    /** Lower-case labels of the bottom navigation tabs, per surface. */
+    /** View-ID suffixes of the bottom tabs; the selected one tells the surface. */
+    val tabViewIds: Map<String, IgSurface>,
+    /** Fallback: lower-case labels of bottom tabs (only counted inside the bottom tab bar area). */
     val tabLabels: Map<IgSurface, List<String>>,
-    /** View-ID fragments that only appear in direct-message screens. */
+    /** View-ID suffix of the bottom tab bar: present on Instagram's main screens. */
+    val tabBarViewId: String,
+    /** View-ID fragments that only appear in direct-message threads. */
     val dmViewIdFragments: List<String>,
-    /** Lower-case prefixes of the message composer's hint text. */
+    /** Lower-case prefixes of the reply box under a reel someone sent in a DM. */
     val dmComposerPrefixes: List<String>,
 )
 
 /**
- * Remembers where the user is in Instagram, so a reel player can be attributed to the surface
- * it was opened from (Arcify's per-surface toggles, spec F04).
+ * Works out which Instagram surface a reel belongs to (Arcify's per-surface toggles, spec F04).
+ *
+ * - On the main screens (bottom tab bar visible), the selected bottom tab decides.
+ * - A reel opened from a DM plays in a full-screen viewer with a "Reply to…" box: that is the DM
+ *   surface. Swiping on from there loses the reply box and shows Instagram's endless suggested
+ *   reels, which count as the Reels feed.
+ * - Other full-screen viewers inherit the last main screen seen (feed, Explore).
  */
 class IgSurfaceTracker(private val hints: InstagramHints) {
     private var lastContext: IgSurface = IgSurface.UNKNOWN
 
     /** Feed every non-player screen through here. */
-    fun observe(root: NodeSnapshot) {
-        classify(root)?.let { lastContext = it }
+    fun observe(root: NodeSnapshot, screen: Bounds) {
+        classify(root, screen)?.let { lastContext = it }
     }
 
-    /** The surface a player on screen belongs to: the Reels tab if selected, else the last screen seen. */
-    fun surfaceForPlayer(root: NodeSnapshot): IgSurface =
-        if (selectedTab(root) == IgSurface.REELS_TAB) IgSurface.REELS_TAB else lastContext
+    fun surfaceForPlayer(root: NodeSnapshot, screen: Bounds): IgSurface {
+        if (hasTabBar(root)) {
+            return selectedTab(root, screen) ?: lastContext
+        }
+        if (hasDmReplyBox(root)) return IgSurface.DM
+        return when (lastContext) {
+            // Left the shared reel and kept swiping: the suggested-reels feed.
+            IgSurface.DM -> IgSurface.REELS_TAB
+            else -> lastContext
+        }
+    }
 
     fun reset() {
         lastContext = IgSurface.UNKNOWN
     }
 
-    internal fun classify(root: NodeSnapshot): IgSurface? = if (isDirectMessages(root)) IgSurface.DM else selectedTab(root)
+    internal fun classify(root: NodeSnapshot, screen: Bounds): IgSurface? =
+        if (isDirectThread(root)) IgSurface.DM else selectedTab(root, screen)
 
-    private fun selectedTab(root: NodeSnapshot): IgSurface? =
-        root.walk().filter { it.selected }.firstNotNullOfOrNull { node -> node.label?.let(::tabFor) }
+    private fun hasTabBar(root: NodeSnapshot): Boolean =
+        root.walk().any { it.visible && it.viewId?.endsWith(hints.tabBarViewId) == true }
+
+    private fun selectedTab(root: NodeSnapshot, screen: Bounds): IgSurface? {
+        val selected = root.walk().filter { it.selected && it.visible && it.bounds.isOnScreen(screen) }.toList()
+        selected.firstNotNullOfOrNull { node ->
+            node.viewId?.let { id -> hints.tabViewIds.entries.firstOrNull { (suffix, _) -> id.endsWith(suffix) }?.value }
+        }?.let { return it }
+        // Fallback by label, but only in the bottom tab bar area: Instagram also marks off-screen
+        // and top-bar elements as selected.
+        val barTop = screen.top + (screen.height * 0.85).toInt()
+        return selected.filter { it.bounds.top >= barTop }.firstNotNullOfOrNull { node -> node.label?.let(::tabFor) }
+    }
 
     private fun tabFor(label: String): IgSurface? {
         val lower = label.trim().lowercase()
         return hints.tabLabels.entries.firstOrNull { (_, labels) -> lower in labels }?.key
     }
 
-    private fun isDirectMessages(root: NodeSnapshot): Boolean = root.walk().any { node ->
-        val idMatch = node.viewId?.let { id -> hints.dmViewIdFragments.any { id.contains(it) } } == true
-        val composer = node.editable && (node.hint ?: node.text)?.trim()?.lowercase()
+    private fun isDirectThread(root: NodeSnapshot): Boolean =
+        root.walk().any { node -> node.viewId?.let { id -> hints.dmViewIdFragments.any { id.contains(it) } } == true }
+
+    private fun hasDmReplyBox(root: NodeSnapshot): Boolean = root.walk().any { node ->
+        node.editable && (node.hint ?: node.text)?.trim()?.lowercase()
             ?.let { text -> hints.dmComposerPrefixes.any { text.startsWith(it) } } == true
-        idMatch || composer
     }
 }
+
+/** True for bounds that are really on the screen (Instagram reports some off-screen nodes as selected). */
+internal fun Bounds.isOnScreen(screen: Bounds): Boolean =
+    right > left && bottom > top && left >= screen.left && right <= screen.right && top >= screen.top && bottom <= screen.bottom
 
 /** Reads the address bar of a supported browser. */
 object BrowserUrlDetector {
@@ -181,24 +217,41 @@ object DetectorDefaults {
             "like", "likes", "liked", "dislike", "comment", "comments",
             "share", "shares", "send", "remix", "save", "favorite",
         ),
-        // Seen on a real phone (YouTube 2026): Shorts controls are `reel_…` views. Instagram's
-        // reels viewer uses `clips_…` views internally (to be confirmed with the recorder).
+        // Seen on a real phone (Nov 2026). Only the player's own views count: Instagram's
+        // bottom-bar Reels button is `clips_tab`, so a bare `clips_` prefix would match every
+        // main screen. The viewer is kept alive but hidden on other tabs; hidden nodes are ignored.
         playerViewIdPrefixes = listOf(
-            "com.google.android.youtube:id/reel_",
-            "com.instagram.android:id/clips_",
+            "com.google.android.youtube:id/reel_play_pause_button",
+            "com.google.android.youtube:id/reel_next_reel_button",
+            "com.google.android.youtube:id/reel_player",
+            "com.instagram.android:id/clips_viewer",
         ),
         // The long-form YouTube player.
         notShortFormViewIds = listOf("com.google.android.youtube:id/watch_player"),
     )
 
+    // From recordings on a real phone (Instagram, Nov 2026).
     val instagram = InstagramHints(
+        tabViewIds = mapOf(
+            ":id/feed_tab" to IgSurface.FEED,
+            ":id/search_tab" to IgSurface.EXPLORE,
+            ":id/clips_tab" to IgSurface.REELS_TAB,
+            ":id/direct_tab" to IgSurface.DM,
+        ),
         tabLabels = mapOf(
             IgSurface.FEED to listOf("home"),
             IgSurface.EXPLORE to listOf("search and explore", "search", "explore"),
             IgSurface.REELS_TAB to listOf("reels"),
+            IgSurface.DM to listOf("message", "messages"),
         ),
-        dmViewIdFragments = listOf(":id/direct_thread", ":id/row_thread_composer"),
-        dmComposerPrefixes = listOf("message"),
+        tabBarViewId = ":id/tab_bar",
+        dmViewIdFragments = listOf(
+            ":id/direct_thread",
+            ":id/thread_view_root",
+            ":id/message_thread_container",
+            ":id/reel_share_item_view",
+        ),
+        dmComposerPrefixes = listOf("reply to", "message"),
     )
 
     val youtube = YouTubeHints(

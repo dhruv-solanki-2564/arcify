@@ -53,21 +53,39 @@ class DetectorsTest {
     }
 
     @Test
-    fun instagramSurfaceFollowsWhereTheUserCameFrom() {
+    fun instagramReelsAreDetectedByTheirClipsViewer() {
+        assertNotNull(ShortFormDetector.detect(Screens.reelsTabPlayer("a"), Screens.PORTRAIT, hints))
+        assertNotNull(ShortFormDetector.detect(Screens.dmSharedReel("a"), Screens.PORTRAIT, hints))
+        assertNull(ShortFormDetector.detect(Screens.instagramHome(), Screens.PORTRAIT, hints))
+    }
+
+    @Test
+    fun theSelectedBottomTabDecidesOnMainScreens() {
         val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
-        val player = Screens.shortFormPlayer("x")
-        assertEquals(IgSurface.UNKNOWN, tracker.surfaceForPlayer(player))
+        val screen = Screens.PORTRAIT
+        // The stray off-screen "Reels" element must not make every reel look like the Reels tab.
+        assertEquals(IgSurface.FEED, tracker.surfaceForPlayer(Screens.reelInMainScreen("x", "feed_tab"), screen))
+        assertEquals(IgSurface.EXPLORE, tracker.surfaceForPlayer(Screens.reelInMainScreen("x", "search_tab"), screen))
+        assertEquals(IgSurface.REELS_TAB, tracker.surfaceForPlayer(Screens.reelsTabPlayer("x"), screen))
+    }
 
-        tracker.observe(Screens.instagramDmThread())
-        assertEquals(IgSurface.DM, tracker.surfaceForPlayer(player))
+    @Test
+    fun aReelSentInADmIsTheDmSurfaceUntilTheUserSwipesOn() {
+        val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
+        val screen = Screens.PORTRAIT
+        tracker.observe(Screens.instagramDmThread(), screen)
+        assertEquals(IgSurface.DM, tracker.surfaceForPlayer(Screens.dmSharedReel("friend's reel"), screen))
+        // Swiping on loses the reply box: Instagram's endless suggested reels.
+        assertEquals(IgSurface.REELS_TAB, tracker.surfaceForPlayer(Screens.suggestedReel("random reel"), screen))
+    }
 
-        tracker.observe(Screens.instagramExplore())
-        assertEquals(IgSurface.EXPLORE, tracker.surfaceForPlayer(player))
-
-        tracker.observe(Screens.instagramHome())
-        assertEquals(IgSurface.FEED, tracker.surfaceForPlayer(player))
-
-        assertEquals(IgSurface.REELS_TAB, tracker.surfaceForPlayer(Screens.reelsTabPlayer("y")))
+    @Test
+    fun fullScreenViewersInheritTheLastMainScreen() {
+        val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
+        val screen = Screens.PORTRAIT
+        assertEquals(IgSurface.UNKNOWN, tracker.surfaceForPlayer(Screens.suggestedReel("x"), screen))
+        tracker.observe(Screens.instagramExplore(), screen)
+        assertEquals(IgSurface.EXPLORE, tracker.surfaceForPlayer(Screens.suggestedReel("x"), screen))
     }
 
     @Test

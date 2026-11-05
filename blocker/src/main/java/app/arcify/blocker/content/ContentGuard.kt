@@ -77,7 +77,7 @@ class ContentGuard(
         val platform = ContentDefaults.shortFormApps[packageName] ?: return null
         val player = ShortFormDetector.detect(root, screen, shortFormHints)
         if (player == null) {
-            if (platform == Platform.INSTAGRAM) igTracker.observe(root)
+            if (platform == Platform.INSTAGRAM) igTracker.observe(root, screen)
             if (platform == Platform.YOUTUBE && StudyModes.youtubeActive(state.timer, state.settings)) {
                 val channel = YouTubeChannelDetector.channelOnWatchPage(root, youtubeHints)
                 if (channel != null && !StudyChannelPolicy.isAllowed(channel, state.studyChannels)) {
@@ -86,7 +86,7 @@ class ContentGuard(
             }
             return null
         }
-        val surface = if (platform == Platform.INSTAGRAM) igTracker.surfaceForPlayer(root) else null
+        val surface = if (platform == Platform.INSTAGRAM) igTracker.surfaceForPlayer(root, screen) else null
         return handleShortForm(ShortFormSighting(platform, packageName, surface, player.itemKey, now), state)
     }
 

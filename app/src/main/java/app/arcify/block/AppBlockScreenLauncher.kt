@@ -2,6 +2,7 @@ package app.arcify.block
 
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import app.arcify.MainActivity
 import app.arcify.blocker.AppCatalog
 import app.arcify.blocker.BlockScreenLauncher
@@ -38,15 +39,43 @@ class AppBlockScreenLauncher @Inject constructor(
 
             BlockDecision.Allow, BlockDecision.ReturnToFocus -> return
         }
-        context.startActivity(intent)
+        val pkg = when (decision) {
+            is BlockDecision.StrictFocus -> decision.packageName
+            is BlockDecision.LimitReached -> decision.packageName
+            else -> ""
+        }
+        // Keyed by type and app only: counters inside the decision change on every check.
+        show("app:${decision::class.simpleName}:$pkg", intent)
     }
 
     override fun returnToFocus() {
-        context.startActivity(
+        show(
+            "focus",
             Intent(context, MainActivity::class.java).addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NO_ANIMATION,
             ),
         )
+    }
+
+    private var lastKey: String? = null
+    private var lastShownAt = 0L
+
+    /**
+     * Opens [intent] unless the same screen was opened a moment ago: repeated identical block
+     * screens are what made the phone flicker.
+     */
+    @Synchronized
+    private fun show(key: String, intent: Intent) {
+        val now = SystemClock.uptimeMillis()
+        if (key == lastKey && now - lastShownAt < REPEAT_GUARD_MS) return
+        lastKey = key
+        lastShownAt = now
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION))
+    }
+
+    private companion object {
+        const val REPEAT_GUARD_MS = 1_500L
     }
 
     override fun limitReminder(packageName: String, usedMs: Long, limitMs: Long) {
@@ -68,11 +97,11 @@ class AppBlockScreenLauncher @Inject constructor(
             is ContentBlock.Channel -> BlockOverlayActivity.channel(context, viaPackage, block.channel)
             is ContentBlock.Website -> BlockOverlayActivity.website(context, viaPackage, block.host, block.studyMode)
         }
-        context.startActivity(intent)
+        show("content:$viaPackage:${block::class.simpleName}", intent)
     }
 
     override fun showProtection(threat: Threat) {
-        context.startActivity(BlockOverlayActivity.protection(context, threat))
+        show("protection:$threat", BlockOverlayActivity.protection(context, threat))
     }
 }
 

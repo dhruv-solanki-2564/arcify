@@ -112,6 +112,34 @@
 - [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
 - [ ] **M8 (later) Online features** (F11, self-hostable backend behind `SyncRepository`)
 
+## 2b. Device testing (realme RMX3840, Android 16 / API 36, realme UI)
+- **Round 1 (2026-11-05)** on branch `fix/device-round1`:
+  - Timer, app limits and Chrome website blocks worked.
+  - Strict focus blocked allowed apps; Shorts/Reels detection failed; realme's launcher uninstalled Arcify despite device admin; insights showed nothing.
+- **Round 2 fixes:**
+  - Settings was treated as a launcher (its `FallbackHome`, priority < 0, has the HOME category). Arcify inspected its own screens, so the uninstall guard fired on "Uninstall/Cancel" text in Arcify, causing flash loops.
+  - Stray launcher window events stole "foreground"; now a launcher must own the active window.
+  - Added per-app action cool-downs (2 s) and a block-screen repeat guard (1.5 s, no animation).
+  - Instagram surfaces are now based on real IDs. An unknown surface uses the Instagram-wide rule, not the strictest one.
+  - Recorder redacts long hints and descriptions.
+- **Verified facts (from `uiautomator dump` and recordings; raw data never committed):**
+  - Chrome address bar: `com.android.chrome:id/url_bar`, text like `reddit.com`, `m.youtube.com/shorts/<id>`.
+  - YouTube Shorts: `reel_play_pause_button`, `reel_next_reel_button`; bottom "Shorts" tab selected; the like column isn't always present.
+  - YouTube long-form: `watch_player`; the like row is horizontal; channel comes from a "Subscribe to <name>." description.
+  - Instagram reel viewer: `clips_viewer…`, visible only while a reel is on screen (hidden but present on other tabs).
+  - Instagram bottom tabs: `tab_bar` with selected `feed_tab` / `search_tab` / `clips_tab` / `direct_tab`. A stray off-screen "Reels" element is always selected; ignore off-screen bounds.
+  - Instagram DM: thread IDs `direct_thread_header`, `thread_view_root`, `message_thread_container`, `reel_share_item_view`. A reel opened from a DM is a full-screen viewer with no tab bar and a "Reply to …" box; swiping on removes the box (suggested reels).
+  - realme launcher `com.android.launcher` shows its own uninstall dialog and removes apps itself (`uninstallSource = com.android.launcher`).
+- **Tools:**
+  - Engine logs: `adb logcat -s Arcify`.
+  - Replay recordings: set `ARCIFY_RECORDINGS=<folder>` and run `gradlew :blocker:testDebugUnitTest --tests *RecordedScreensTest* -i`.
+  - Pull recordings: `adb exec-out run-as app.arcify.debug tar c files/snapshots`.
+- **Known gaps (not fixed yet):**
+  - Changing the system clock can end time-based locks early.
+  - Safe mode / adb can always remove the app.
+  - OEM battery managers can kill the accessibility service (no heartbeat/re-enable nudge yet).
+  - Insights text rendering ("smudged") is left for the UI pass.
+
 ## 3. Decisions log
 | Date | Decision | Why |
 |---|---|---|

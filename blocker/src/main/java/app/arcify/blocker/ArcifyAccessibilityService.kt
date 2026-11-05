@@ -84,6 +84,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
     private var screenJob: Job? = null
     private var lastScreenCheck = 0L
     private var windowJob: Job? = null
+    private val cooldown = ActionCooldown()
     private val appLabel: String by lazy { applicationInfo.loadLabel(packageManager).toString() }
     private val serviceLabel: String by lazy { getString(R.string.accessibility_service_label) }
     private val guard: ContentGuard by lazy {
@@ -157,7 +158,10 @@ class ArcifyAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val cls = event.className?.toString()
-            val isScreen = pkg in launchers || appCatalog.isActivity(pkg, cls)
+            // Launchers also emit window events from animations and widgets while another app
+            // opens; they only count as "in front" if they really own the active window.
+            val isScreen = appCatalog.isActivity(pkg, cls) ||
+                (pkg in launchers && rootInActiveWindow?.packageName?.toString() == pkg)
             if (isScreen && pkg != foreground) {
                 Diag.log("foreground $foreground -> $pkg ($cls)")
                 foreground = pkg
@@ -188,9 +192,15 @@ class ArcifyAccessibilityService : AccessibilityService() {
         evaluation?.cancel()
         evaluation = scope.launch {
             val (decision, limit, usedMs) = decide(pkg)
-            if (decision != BlockDecision.Allow) Diag.log("decision for $pkg: $decision")
+            if (decision == BlockDecision.Allow) {
+                if (limit != null) remindIfClose(limit, usedMs)
+                return@launch
+            }
+            // Periodic re-checks and flow updates must not repeat an action that is still taking effect.
+            if (!cooldown.tryAct("app:$pkg:${decision::class.simpleName}", SystemClock.uptimeMillis())) return@launch
+            Diag.log("decision for $pkg: $decision")
             when (decision) {
-                BlockDecision.Allow -> if (limit != null) remindIfClose(limit, usedMs)
+                BlockDecision.Allow -> Unit
                 BlockDecision.ReturnToFocus -> screens.returnToFocus()
                 is BlockDecision.StrictFocus, is BlockDecision.LimitReached -> screens.showBlock(decision)
             }
@@ -250,6 +260,8 @@ class ArcifyAccessibilityService : AccessibilityService() {
             if (pkg == foreground || pkg in alwaysAllowed || pkg in launchers) continue
             val decision = decide(pkg).decision
             if (decision is BlockDecision.StrictFocus || decision is BlockDecision.LimitReached) {
+                if (!cooldown.tryAct("window:$pkg", SystemClock.uptimeMillis())) return
+                Diag.log("second window $pkg: $decision")
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 screens.showBlock(decision)
                 return
@@ -259,8 +271,11 @@ class ArcifyAccessibilityService : AccessibilityService() {
 
     // ---- Screen content ----
 
+    /** Arcify's own screens are never inspected: they talk about uninstalling and blocking all the time. */
     private fun needsScreenCheck(pkg: String): Boolean =
-        guard.monitors(pkg, contentState) || (protectionActive && guardsForProtection(pkg))
+        pkg != packageName &&
+            !cooldown.isCooling(pkg, SystemClock.uptimeMillis()) &&
+            (guard.monitors(pkg, contentState) || (protectionActive && guardsForProtection(pkg)))
 
     /** Installer, settings and store screens, plus home-screen apps (their own uninstall dialogs). */
     private fun guardsForProtection(pkg: String): Boolean =
@@ -297,6 +312,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
                 launcherPackages = launchers,
             )
             if (threat != null) {
+                cooldown.start(pkg, SystemClock.uptimeMillis())
                 Diag.log("protection: $threat in $pkg")
                 // Back cancels an uninstall dialog; Home leaves a settings or store page.
                 performGlobalAction(if (threat == Threat.UNINSTALL) GLOBAL_ACTION_BACK else GLOBAL_ACTION_HOME)
@@ -310,9 +326,10 @@ class ArcifyAccessibilityService : AccessibilityService() {
         val metrics = resources.displayMetrics
         val screen = Bounds(0, 0, metrics.widthPixels, metrics.heightPixels)
         val state = contentState.copy(timer = timerController.timer.value)
-        val block = guard.inspect(pkg, snapshot, screen, now, state)
-        Diag.log("content $pkg: ${snapshot.walk().count()} nodes, browsers=${state.browsers.size}, block=$block")
-        if (block == null) return
+        val block = guard.inspect(pkg, snapshot, screen, now, state) ?: return
+        // One Back per block: the events that follow while it takes effect are ignored for a moment.
+        cooldown.start(pkg, SystemClock.uptimeMillis())
+        Diag.log("content block in $pkg: $block")
         performGlobalAction(GLOBAL_ACTION_BACK)
         screens.showContentBlock(block, pkg)
     }

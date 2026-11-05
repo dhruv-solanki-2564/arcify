@@ -42,16 +42,60 @@ object Screens {
     fun tab(label: String, selected: Boolean) =
         NodeSnapshot(contentDescription = label, selected = selected, bounds = Bounds(0, 2300, 200, 2400))
 
-    fun instagramHome() = NodeSnapshot(bounds = PORTRAIT, children = listOf(tab("Home", true), tab("Reels", false)))
+    // ---- Instagram, modelled on recordings from a real phone (structure only) ----
 
-    fun instagramExplore() = NodeSnapshot(bounds = PORTRAIT, children = listOf(tab("Home", false), tab("Search and explore", true)))
+    private const val IG = "com.instagram.android:id/"
+
+    /** Instagram marks an off-screen top-bar "Reels" element as selected on every main screen. */
+    private val strayReels = NodeSnapshot(contentDescription = "Reels", selected = true, bounds = Bounds(1345, 148, 1080, 240))
+
+    /** The bottom tab bar with [selected] (feed_tab, clips_tab, direct_tab, search_tab) chosen. */
+    private fun tabBar(selected: String) = NodeSnapshot(
+        viewId = IG + "tab_bar",
+        bounds = Bounds(0, 2178, 1080, 2300),
+        children = listOf(
+            "feed_tab" to "Home",
+            "clips_tab" to "Reels",
+            "direct_tab" to "Message",
+            "search_tab" to "Search and explore",
+        ).mapIndexed { i, (id, label) ->
+            NodeSnapshot(viewId = IG + id, contentDescription = label, selected = id == selected, bounds = Bounds(i * 216, 2178, i * 216 + 216, 2300))
+        },
+    )
+
+    private fun clipsViewer(caption: String) =
+        NodeSnapshot(viewId = IG + "clips_viewer_view_pager", bounds = PORTRAIT, children = listOf(text(caption, 2050)))
+
+    fun instagramHome() = NodeSnapshot(bounds = PORTRAIT, children = listOf(strayReels, tabBar("feed_tab")))
+
+    fun instagramExplore() = NodeSnapshot(bounds = PORTRAIT, children = listOf(strayReels, tabBar("search_tab")))
 
     fun instagramDmThread() = NodeSnapshot(
         bounds = PORTRAIT,
-        children = listOf(NodeSnapshot(className = "android.widget.EditText", editable = true, hint = "Message...", bounds = Bounds(40, 2200, 900, 2280))),
+        children = listOf(
+            NodeSnapshot(viewId = IG + "direct_thread_header", bounds = Bounds(0, 100, 1080, 250)),
+            NodeSnapshot(viewId = IG + "reel_share_item_view", bounds = Bounds(300, 800, 900, 1500)),
+            NodeSnapshot(className = "android.widget.EditText", editable = true, hint = "Message...", bounds = Bounds(40, 2200, 900, 2280)),
+        ),
     )
 
-    fun reelsTabPlayer(caption: String) = shortFormPlayer(caption, extra = listOf(tab("Reels", true)))
+    /** Reels opened inside the main screens, with the bottom tab bar visible. */
+    fun reelInMainScreen(caption: String, tab: String) =
+        NodeSnapshot(bounds = PORTRAIT, children = listOf(strayReels, clipsViewer(caption), tabBar(tab)))
+
+    fun reelsTabPlayer(caption: String) = reelInMainScreen(caption, "clips_tab")
+
+    /** The full-screen viewer for a reel someone sent in a DM: no tab bar, a "Reply to…" box. */
+    fun dmSharedReel(caption: String) = NodeSnapshot(
+        bounds = PORTRAIT,
+        children = listOf(
+            clipsViewer(caption),
+            NodeSnapshot(className = "android.widget.EditText", editable = true, hint = "Reply to a friend", bounds = Bounds(40, 2200, 900, 2280)),
+        ),
+    )
+
+    /** The same viewer after swiping on: suggested reels, no reply box. */
+    fun suggestedReel(caption: String) = NodeSnapshot(bounds = PORTRAIT, children = listOf(clipsViewer(caption)))
 
     fun browser(url: String, pkg: String = "com.android.chrome") = NodeSnapshot(
         bounds = PORTRAIT,

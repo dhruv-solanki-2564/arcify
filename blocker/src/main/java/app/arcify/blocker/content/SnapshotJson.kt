@@ -18,8 +18,8 @@ object SnapshotJson {
         node.className?.let { put("class", it) }
         node.viewId?.let { put("id", it) }
         node.text?.let { put("text", if (redactText) "[text:${it.length}]" else it) }
-        node.contentDescription?.let { put("desc", it) }
-        node.hint?.let { put("hint", it) }
+        node.contentDescription?.let { put("desc", if (redactText) redactLabel(it) else it) }
+        node.hint?.let { put("hint", if (redactText) redactLabel(it) else it) }
         put("bounds", JSONArray(listOf(node.bounds.left, node.bounds.top, node.bounds.right, node.bounds.bottom)))
         if (!node.visible) put("visible", false)
         if (node.selected) put("selected", true)
@@ -48,4 +48,16 @@ object SnapshotJson {
     }
 
     private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !isNull(key)) getString(key) else null
+
+    /**
+     * Short control labels ("Like", "Search and explore") are kept because detectors need them.
+     * Longer ones can carry names ("Reply to <friend>", profile captions), so only their first
+     * word survives.
+     */
+    internal fun redactLabel(label: String): String {
+        val words = label.trim().split(Regex("\\s+"))
+        return if (words.size <= MAX_KEPT_WORDS) label else "${words.first()} [${label.length}]"
+    }
+
+    private const val MAX_KEPT_WORDS = 3
 }

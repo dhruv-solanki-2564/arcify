@@ -54,13 +54,14 @@ object ShortFormPolicy {
 
     /**
      * The rule that governs a sighting. An Instagram surface rule wins over the Instagram-wide
-     * rule. When the surface can't be determined, the strictest Instagram rule applies.
+     * rule. When the surface can't be determined, the Instagram-wide rule applies.
      */
     fun ruleFor(platform: Platform, surface: IgSurface?, rules: List<ShortFormRule>): ShortFormRule? {
         val forPlatform = rules.filter { it.platform == platform }
         val general = forPlatform.firstOrNull { it.surface == null }
-        if (platform != Platform.INSTAGRAM || surface == null) return general
-        if (surface == IgSurface.UNKNOWN) return strictest(forPlatform)
+        // An unknown surface (e.g. a reel in a browser) follows the Instagram-wide rule, so only
+        // what the user explicitly blocked gets blocked.
+        if (platform != Platform.INSTAGRAM || surface == null || surface == IgSurface.UNKNOWN) return general
         return forPlatform.firstOrNull { it.surface == surface } ?: general
     }
 
@@ -98,11 +99,6 @@ object ShortFormPolicy {
         val lockEnd = current.strictUntil ?: return true
         return isAtLeastAsStrict(updated, current) && (updated.strictUntil ?: Long.MIN_VALUE) >= lockEnd
     }
-
-    private fun strictest(rules: List<ShortFormRule>): ShortFormRule? =
-        rules.fold(null as ShortFormRule?) { best, rule ->
-            if (best == null || (isAtLeastAsStrict(rule, best) && !isAtLeastAsStrict(best, rule))) rule else best
-        }
 }
 
 /**

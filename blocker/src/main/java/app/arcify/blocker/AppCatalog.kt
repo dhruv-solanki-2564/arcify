@@ -64,10 +64,18 @@ class AppCatalog @Inject constructor(
         }
     }
 
-    /** Every installed home-screen app. */
+    /**
+     * Real home-screen apps. Excludes Arcify itself (its optional home proxy) and system
+     * fallbacks: Settings registers a low-priority "FallbackHome" for boot, which must not make
+     * Settings count as a launcher.
+     */
     fun homePackages(): Set<String> {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        return pm.queryIntentActivities(intent, 0).map { it.activityInfo.packageName }.toSet()
+        return pm.queryIntentActivities(intent, 0)
+            .filter { it.priority >= 0 }
+            .map { it.activityInfo.packageName }
+            .filter { it != context.packageName && it != SETTINGS_PACKAGE }
+            .toSet()
     }
 
     /**
@@ -113,6 +121,8 @@ class AppCatalog @Inject constructor(
     }
 
     private companion object {
+        const val SETTINGS_PACKAGE = "com.android.settings"
+
         val EMERGENCY_PACKAGES = setOf(
             "com.android.phone",
             "com.android.server.telecom",
