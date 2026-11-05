@@ -32,6 +32,8 @@ import app.arcify.ui.block.ShortsRoute
 import app.arcify.ui.block.WebsitesRoute
 import app.arcify.ui.block.YouTubeStudyRoute
 import app.arcify.ui.focus.FocusRoute
+import app.arcify.ui.insights.InsightsRoute
+import app.arcify.ui.schedule.ScheduleRoute
 
 private enum class TopLevel(val route: String, @param:StringRes val label: Int, val icon: ImageVector) {
     FOCUS("focus", R.string.nav_focus, Icons.Filled.PlayArrow),
@@ -82,12 +84,8 @@ fun ArcifyRoot() {
             composable(BlockSection.YOUTUBE.route) { YouTubeStudyRoute() }
             composable(BlockSection.WEBSITES.route) { WebsitesRoute() }
             composable(BlockSection.PROTECTION.route) { ProtectionRoute() }
-            composable(TopLevel.SCHEDULE.route) {
-                PlaceholderScreen(R.string.nav_schedule, R.string.placeholder_schedule)
-            }
-            composable(TopLevel.INSIGHTS.route) {
-                PlaceholderScreen(R.string.nav_insights, R.string.placeholder_insights)
-            }
+            composable(TopLevel.SCHEDULE.route) { ScheduleRoute() }
+            composable(TopLevel.INSIGHTS.route) { InsightsRoute() }
             composable(TopLevel.SETTINGS.route) {
                 PlaceholderScreen(R.string.nav_settings, R.string.placeholder_settings)
             }

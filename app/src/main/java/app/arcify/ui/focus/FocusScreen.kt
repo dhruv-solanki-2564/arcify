@@ -48,6 +48,7 @@ import app.arcify.core.timer.PomodoroConfig
 import app.arcify.core.protection.HardExit
 import app.arcify.core.timer.TimerMode
 import app.arcify.core.util.formatDuration
+import app.arcify.core.util.formatShortDuration
 import app.arcify.timer.TimerText
 
 @Composable
@@ -100,7 +101,7 @@ fun FocusScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            stringResource(R.string.focus_today, formatDuration(ui.focusedTodayMs)),
+            stringResource(R.string.focus_today, formatShortDuration(ui.focusedTodayMs), formatShortDuration(ui.goalMs)),
             style = MaterialTheme.typography.labelLarge,
         )
         val timer = ui.timer

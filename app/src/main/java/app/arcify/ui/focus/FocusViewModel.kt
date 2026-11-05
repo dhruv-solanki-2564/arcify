@@ -8,6 +8,7 @@ import app.arcify.core.data.SessionRepository
 import app.arcify.core.data.TimerSettingsRepository
 import app.arcify.core.protection.HardExit
 import app.arcify.core.timer.ActiveTimer
+import app.arcify.core.timer.MINUTE_MS
 import app.arcify.core.timer.PomodoroConfig
 import app.arcify.core.timer.TimerController
 import app.arcify.core.timer.TimerMode
@@ -28,6 +29,7 @@ data class FocusUiState(
     val timer: ActiveTimer? = null,
     val now: Long = 0,
     val focusedTodayMs: Long = 0,
+    val goalMs: Long = TimerSettingsRepository.DEFAULT_GOAL_MIN * MINUTE_MS,
 )
 
 @HiltViewModel
@@ -59,8 +61,8 @@ class FocusViewModel @Inject constructor(
     }
 
     val ui: StateFlow<FocusUiState> =
-        combine(controller.timer, ticker, sessions.observeFocusedToday()) { timer, _, today ->
-            FocusUiState(timer = timer, now = controller.now(), focusedTodayMs = today)
+        combine(controller.timer, ticker, sessions.observeFocusedToday(), settings.dailyGoalMinutes) { timer, _, today, goal ->
+            FocusUiState(timer = timer, now = controller.now(), focusedTodayMs = today, goalMs = goal * MINUTE_MS)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FocusUiState())
 
     val pomodoro: StateFlow<PomodoroConfig> =

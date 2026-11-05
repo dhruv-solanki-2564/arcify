@@ -10,6 +10,9 @@ data class AppEvent(
     enum class Type { FOREGROUND, BACKGROUND }
 }
 
+/** Foreground time and number of times an app was opened, within a window. */
+data class AppUsage(val foregroundMs: Long, val launches: Int)
+
 /**
  * Turns raw activity events into foreground time per app. Pure, so it is unit-tested without a
  * device (spec F03/F08).
@@ -17,13 +20,17 @@ data class AppEvent(
  * - An app counts as foreground while at least one of its activities is, so switching between
  *   its own screens doesn't double count or drop time.
  * - An app whose first event in the window is a BACKGROUND was already open when the window
- *   began, so it's counted from [fromMs].
+ *   began, so it's counted from [fromMs] (but not as a launch).
  * - Apps still open at the end are counted up to [toMs].
  */
 object UsageAggregator {
 
-    fun foregroundTime(events: List<AppEvent>, fromMs: Long, toMs: Long): Map<String, Long> {
+    fun foregroundTime(events: List<AppEvent>, fromMs: Long, toMs: Long): Map<String, Long> =
+        stats(events, fromMs, toMs).mapValues { it.value.foregroundMs }.filterValues { it > 0 }
+
+    fun stats(events: List<AppEvent>, fromMs: Long, toMs: Long): Map<String, AppUsage> {
         val totals = HashMap<String, Long>()
+        val launches = HashMap<String, Int>()
         val states = HashMap<String, PackageState>()
 
         fun add(pkg: String, start: Long, end: Long) {
@@ -37,7 +44,10 @@ object UsageAggregator {
             val activity = event.className ?: ""
             when (event.type) {
                 AppEvent.Type.FOREGROUND -> {
-                    if (state.open.isEmpty()) state.openSince = event.timeMs
+                    if (state.open.isEmpty()) {
+                        state.openSince = event.timeMs
+                        if (event.timeMs in fromMs until toMs) launches[event.packageName] = (launches[event.packageName] ?: 0) + 1
+                    }
                     state.open += activity
                 }
 
@@ -59,7 +69,9 @@ object UsageAggregator {
         for ((pkg, state) in states) {
             if (state.open.isNotEmpty()) add(pkg, state.openSince ?: fromMs, toMs)
         }
-        return totals
+        return (totals.keys + launches.keys).associateWith { pkg ->
+            AppUsage(totals[pkg] ?: 0L, launches[pkg] ?: 0)
+        }
     }
 
     private class PackageState {

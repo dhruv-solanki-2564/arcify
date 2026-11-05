@@ -6,6 +6,8 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import androidx.glance.appwidget.updateAll
+import app.arcify.widget.TodayWidget
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import app.arcify.R
@@ -88,12 +90,16 @@ class FocusTimerService : LifecycleService() {
                 TimerNotifications.postAlert(this, getString(text), null)
             }
 
-            is TimerEvent.SessionFinished -> if (event.summary.completed) {
-                TimerNotifications.postAlert(
-                    this,
-                    getString(R.string.alert_session_done),
-                    getString(R.string.alert_session_done_text, formatDuration(event.summary.focusedMs)),
-                )
+            is TimerEvent.SessionFinished -> {
+                if (event.summary.completed) {
+                    TimerNotifications.postAlert(
+                        this,
+                        getString(R.string.alert_session_done),
+                        getString(R.string.alert_session_done_text, formatDuration(event.summary.focusedMs)),
+                    )
+                }
+                // The widget shows today's focus total.
+                lifecycleScope.launch { runCatching { TodayWidget().updateAll(applicationContext) } }
             }
         }
     }

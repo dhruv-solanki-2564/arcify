@@ -11,8 +11,6 @@
 
     <!-- Placeholders for features in later milestones -->
     <string name="placeholder_title">Coming soon</string>
-    <string name="placeholder_schedule">Planned sessions, repeats and the weekly calendar arrive in milestone M6.</string>
-    <string name="placeholder_insights">Screen time, unlocks and reel counts arrive in milestone M6.</string>
     <string name="placeholder_settings">Permissions, editable lists and backups arrive with the features that use them.</string>
 
     <!-- Focus setup -->
@@ -24,7 +22,7 @@
     <string name="stopwatch_hint">Counts up until you stop it. Strict mode isn\'t available for the stopwatch.</string>
     <string name="strict_mode">Strict mode: no pausing or stopping during focus, and only allowed apps open (needs Accessibility, see Block tab)</string>
     <string name="start">Start</string>
-    <string name="focus_today">Focused today: %s</string>
+    <string name="focus_today">Focused today: %1$s of your %2$s goal</string>
 
     <!-- Running session -->
     <string name="pause">Pause</string>
@@ -210,4 +208,76 @@
     <string name="block_protection_title">Protection is on</string>
     <string name="block_protection_uninstall">Arcify can\'t be uninstalled while you\'re committed. Try again once your strict session and locked rules have ended.</string>
     <string name="block_protection_settings">Arcify\'s settings are locked while you\'re committed. Try again once your strict session and locked rules have ended.</string>
+
+    <!-- Insights -->
+    <string name="insights_no_access">Turn on Usage access in the Block tab to see your screen time.</string>
+    <string name="insights_today">Today</string>
+    <string name="insights_screen_time">%s screen time</string>
+    <string name="insights_focus">Focus: %1$s of your %2$s goal</string>
+    <string name="insights_unlocks">Unlocks: %s</string>
+    <string name="insights_unknown">not available on this phone</string>
+    <string name="insights_shortform">Reels &amp; Shorts watched: %d</string>
+    <string name="insights_week">Last 7 days</string>
+    <string name="insights_week_hint">Bars show screen time by category; the time underneath is focus.</string>
+    <string name="insights_streaks">Streaks</string>
+    <string name="insights_streak_row">%1$s: %2$d days (best %3$d)</string>
+    <string name="streak_focus">Focus goal met</string>
+    <string name="streak_limits">All limits kept</string>
+    <string name="streak_shorts_free">No Reels or Shorts</string>
+    <string name="insights_top_apps">Top apps today</string>
+    <string name="insights_no_usage">No usage recorded yet today.</string>
+    <string name="insights_category_hint">Tap a category to change how that app counts.</string>
+    <string name="category_productive">Productive</string>
+    <string name="category_neutral">Neutral</string>
+    <string name="category_distracting">Distracting</string>
+
+    <!-- Schedule -->
+    <string name="schedule_goal_title">Daily focus goal</string>
+    <string name="schedule_nudges">Nudges</string>
+    <string name="schedule_nudges_desc">A reminder in the evening if you haven\'t focused yet, and one if your goal streak is about to break.</string>
+    <string name="schedule_week">This week</string>
+    <string name="schedule_add">Add session</string>
+    <string name="schedule_today">Today</string>
+    <string name="schedule_tomorrow">Tomorrow</string>
+    <string name="schedule_nothing">Nothing planned.</string>
+    <string name="schedule_item">%1$s · %2$s</string>
+    <string name="schedule_item_detail">%1$s · %2$s</string>
+    <string name="schedule_strict">Strict</string>
+    <string name="schedule_new">Plan a session</string>
+    <string name="schedule_edit">Edit session</string>
+    <string name="schedule_title_hint">What will you work on?</string>
+    <string name="schedule_default_title">Focus session</string>
+    <string name="schedule_length">Length</string>
+    <string name="schedule_repeat">Repeat</string>
+    <string name="schedule_strict_note">Strict sessions start by themselves at the planned time.</string>
+    <string name="repeat_once">Once</string>
+    <string name="repeat_daily">Every day</string>
+    <string name="repeat_weekdays">Weekdays</string>
+    <string name="repeat_custom">Pick days</string>
+    <string name="status_upcoming">Upcoming</string>
+    <string name="status_now">Now</string>
+    <string name="status_done">Done</string>
+    <string name="status_missed">Missed</string>
+    <string name="save">Save</string>
+    <string name="channel_schedule">Scheduled sessions</string>
+    <string name="schedule_due_title">Time to focus: %s</string>
+    <string name="schedule_started_title">Strict session started: %s</string>
+    <string name="schedule_due_text">%d minutes planned.</string>
+    <string name="schedule_start_now">Start now</string>
+
+    <!-- Nudges -->
+    <string name="channel_nudges">Nudges</string>
+    <string name="nudge_start_title">No focus yet today</string>
+    <string name="nudge_start_text">Even 25 minutes counts. Start a session?</string>
+    <string name="nudge_streak_title">Your %d-day streak ends tonight</string>
+    <string name="nudge_streak_text">Reach your focus goal before midnight to keep it.</string>
+
+    <!-- Widget -->
+    <string name="widget_today_name">Arcify today</string>
+    <string name="widget_today_description">Today\'s focus, screen time and a start button.</string>
+    <string name="widget_focus">Focus %1$s of %2$s</string>
+    <string name="widget_screen">Screen time %s</string>
+    <string name="widget_screen_unlocks">Screen time %1$s · %2$d unlocks</string>
+    <string name="widget_start_focus">Start focus</string>
+    <string name="widget_open_timer">Open timer</string>
 </resources>
