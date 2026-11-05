@@ -4,12 +4,15 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M6b code done on branch `m6b/batching-alarm-adult` (PR open, not merged): adult-site filter (StevenBlack, MIT), F13 notification batching, F14 study wake-up alarm. 131 unit tests pass and the debug APK builds. **Not yet installed on the phone** (it wasn't connected).
-- **Next step:** install the M6b APK and check it on the phone:
-  1. **Adult filter:** turn it on under Block → Websites & browsers and open a listed site in Chrome; it should be blocked. Add an exception and check it opens. Lock for today: the switch can't be turned off.
-  2. **Wake alarm:** add one 2 minutes ahead in Schedule. Lock the phone. It should ring over the lock screen. Check snooze (count goes down), the sums, and Start focus.
-  3. **Batching:** grant notification access, add an app (e.g. WhatsApp), choose 30 min. Its notifications should disappear and come back as one summary, or with "Deliver now". Calls must still ring.
-  Then merge the PR and start M7 (signed release APK + GitHub Actions).
+- **Current milestone:** M6b merged into `main` (PR #8, f198a5c). Phone fixes are on branch `fix/m6b-device` (PR open). The user confirmed on 2026-11-05 that the adult-site filter and the wake-up alarm work on the realme phone.
+- **Next step:** merge the `fix/m6b-device` PR, then start **M7**: signed release APK, GitHub Actions build, GitHub Releases.
+- **F13 notification batching is not yet checked on the phone** (the user skipped it). Steps:
+  1. Grant notification access.
+  2. Add WhatsApp and pick 30 min.
+  3. A message should be held and "Held now" should go up.
+  4. "Deliver now" should give one summary.
+  5. Calls must still ring.
+  6. Switching batching off should deliver everything held.
 - **Still to check on the phone later:** split screen, home hiding (proxy launcher), schedule alarms after reboot, the widget, Insights over several days, Snapchat/Facebook detectors.
 - **Old checklist (pre-device, kept for reference; mostly done) — when a phone is connected (M4b, calibration):**
   1. Install the debug APK, grant Accessibility + Usage access.
@@ -113,13 +116,14 @@
     - Insights and Schedule tabs; goal on the Focus screen.
   - [x] 100 unit tests passing; `assembleDebug` OK (14.8 MB)
   - [ ] Device checks (see "Now")
-- [ ] **M6b** F13 notification batching, F14 study wake alarm, adult-site list: code done, PR open, device check pending
+- [x] **M6b** F13 notification batching, F14 study wake alarm, adult-site list: merged in PR #8 (f198a5c)
   - [x] Adult filter: `tools/build_adult_list.js`, `adult_domains.txt.gz` asset (64,297 domains), `AdultFilter` rules (parent-domain match, exceptions, lock for today), `AdultDomains` loader, checked first in `ContentGuard.inspectBrowser`, UI section on the Websites screen, counts as a commitment
   - [x] Room v5 (auto-migration): `wake_alarm`, `held_notification`; `WakeAlarmRepository`, `BatchingRepository`
   - [x] F14: `WakeAlarmRules`, `WakeTask`; `WakeAlarms` (setAlarmClock), `WakeAlarmReceiver`, `WakeAlarmService` (alarm-stream sound + vibration, 10 min cap), `WakeAlarmActivity` (lock screen; focus / snooze / sums); Schedule-tab section and dialog
   - [x] F13: `BatchingRules`, `ArcifyNotificationListener`, `BatchDelivery` + receiver; Block → Notification batching screen
   - [x] 131 unit tests passing; `assembleDebug` OK (15.7 MB)
-  - [ ] Installed and checked on the phone
+  - [x] Adult filter and wake alarm checked on the phone (after the `fix/m6b-device` fixes)
+  - [ ] Notification batching checked on the phone
 - [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
 - [ ] **M8 (later) Online features** (F11, self-hostable backend behind `SyncRepository`)
 
@@ -152,6 +156,10 @@
   - Content blocks show an accessibility-overlay banner (`BlockBanner`) instead of the full-screen page, so there's no flash and no feed refresh.
   - Reels tab is left by tapping `feed_tab`.
   - `BlockScreenLauncher.showContentBlock` was removed. `BlockOverlayActivity`'s content reasons still exist but are unused.
+- **M6b round (2026-11-05):**
+  - The adult filter blocked nothing. The Android build **unpacks `.gz` assets and drops the extension**, so the APK holds `assets/adult_domains.txt`. `AdultDomains` now reads the plain name, falling back to gz. The Websites screen shows the list size.
+  - The wake alarm "didn't ring": it was armed for 10:46 and 23:47 because of the fixed 24-hour dial. Time pickers now follow the phone's 12/24-hour setting. Saving shows "rings in N min" and each alarm shows its next ring. Arming and ringing are logged (`adb logcat -s Arcify`).
+  - Both were confirmed working by the user after the fix.
 - **Known gaps (not fixed yet):**
   - Changing the system clock can end time-based locks early.
   - Safe mode / adb can always remove the app.
@@ -239,3 +247,4 @@
 - 2026-11-05 — Session 1 (cont.): PR #5 merged (5d6e47b). The user chose F13 + F14 + the StevenBlack list (→ M6b). M6 on `m6/insights-schedule`: usage history, insights tab, streaks, schedule + alarms, daily goal, nudges, Today widget; 100 tests passing; APK builds.
 - 2026-11-05 — Session 1 (cont.): first phone tests on realme RMX3840 / Android 16. Three fix rounds on `fix/device-round1` (687dfd9, 9964477, 92621e1) driven by logcat, `uiautomator` dumps and recordings; 115 tests passing; the user confirmed everything tested works. Merged PR #6 and the fix PR into `main`. Next: M6b.
 - 2026-11-05 — Session 1 (cont.): M6b on `m6b/batching-alarm-adult`: adult-site filter (StevenBlack list bundled), F14 wake-up alarm, F13 notification batching, Room v5; 131 tests passing; APK builds. Not yet on the phone.
+- 2026-11-05 — Session 1 (cont.): merged PR #8. Phone test of M6b: fixed adult-list loading (gz asset renamed by the build) and wake-alarm time picking on `fix/m6b-device` (03f1934); the user confirmed both work. Batching not yet tested.
