@@ -14,3 +14,15 @@ fun formatDuration(ms: Long): String {
         String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
     }
 }
+
+/** Formats a duration in whole minutes for labels: `0 min`, `45 min`, `1 h 5 min`, `2 h`. */
+fun formatShortDuration(ms: Long): String {
+    val totalMinutes = ms.coerceAtLeast(0) / 60_000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours == 0L -> "$minutes min"
+        minutes == 0L -> "$hours h"
+        else -> "$hours h $minutes min"
+    }
+}

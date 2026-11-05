@@ -1,6 +1,7 @@
 package app.arcify.core.timer
 
 import app.arcify.core.util.formatDuration
+import app.arcify.core.util.formatShortDuration
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -51,5 +52,13 @@ class SessionRulesTest {
         assertEquals("00:59", formatDuration(59_999))
         assertEquals("25:00", formatDuration(25 * MINUTE_MS))
         assertEquals("1:02:03", formatDuration((3600 + 120 + 3) * 1000L))
+    }
+
+    @Test
+    fun shortDurationsFormatInWholeMinutes() {
+        assertEquals("0 min", formatShortDuration(59_999))
+        assertEquals("45 min", formatShortDuration(45 * MINUTE_MS))
+        assertEquals("1 h 5 min", formatShortDuration(65 * MINUTE_MS))
+        assertEquals("2 h", formatShortDuration(120 * MINUTE_MS))
     }
 }

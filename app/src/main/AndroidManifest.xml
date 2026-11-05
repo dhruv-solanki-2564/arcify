@@ -25,6 +25,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Covers a blocked app. Own task, hidden from Recents, so it can't be swiped past. -->
+        <activity
+            android:name=".block.BlockOverlayActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.arcify.block" />
+
         <service
             android:name=".timer.FocusTimerService"
             android:exported="false"

@@ -11,3 +11,12 @@
 - Setup flow explains the launcher choice. If the user declines, strict mode falls back to the accessibility path: when the launcher package comes to the foreground, show the overlay.
 - Allowed-apps list per session (default: phone, messages, clock, Arcify). Editable.
 - Emergency exit: an optional "hard exit" that requires typing a long confirmation phrase. It is **off by default** in strict mode.
+
+## Implementation (M3)
+- **Lock window**: only strict sessions, and only during focus phases. Pomodoro breaks are free (`BlockPolicy.focusLock`). Non-strict sessions don't block apps.
+- **Accessibility path**:
+  - When an app not on the allowed list comes to the front, the block screen covers it, with "Back to focus" and the time left.
+  - When a home-screen app comes to the front, Arcify's focus screen comes back instead.
+- **Always allowed**: Arcify, system UI, the default dialer and SMS apps, telephony/emergency packages, enabled keyboards (`AppCatalog.alwaysAllowedPackages`).
+- **Allowed list**: user-editable in the Block tab, with reset to defaults (`strict_allowed_app` table). JSON export comes with the Settings work.
+- **Deferred to M5**: the optional proxy launcher (`ProxyHomeActivity`) and the hard-exit phrase. They ship together with block protection, because they change how the user gets out of the app.

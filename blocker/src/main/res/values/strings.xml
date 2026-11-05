@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_label">Arcify blocker</string>
+    <string name="accessibility_service_description">Arcify uses this to see which app is open, so it can enforce your daily app limits and your strict focus sessions. Everything is processed on your phone. Nothing is recorded or sent anywhere.</string>
+</resources>
