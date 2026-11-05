@@ -3,10 +3,12 @@ package app.arcify.blocker
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.provider.Telephony
 import android.telecom.TelecomManager
 import android.view.inputmethod.InputMethodManager
+import app.arcify.core.insights.AppCategory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -21,6 +23,7 @@ class AppCatalog @Inject constructor(
 ) {
     private val pm: PackageManager get() = context.packageManager
     private val activityCache = ConcurrentHashMap<String, Boolean>()
+    private val categoryCache = ConcurrentHashMap<String, AppCategory>()
 
     /** Apps with a launcher icon, except Arcify, sorted by name. */
     fun launchableApps(): List<InstalledApp> {
@@ -37,6 +40,27 @@ class AppCatalog @Inject constructor(
         pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
     } catch (_: PackageManager.NameNotFoundException) {
         packageName
+    }
+
+    /**
+     * A starting category from the app's own Play category (spec F08): social, video, games and
+     * news count as distracting, productivity apps as productive, everything else as neutral.
+     * The user can change any app.
+     */
+    fun defaultCategory(packageName: String): AppCategory = categoryCache.getOrPut(packageName) {
+        val category = try {
+            pm.getApplicationInfo(packageName, 0).category
+        } catch (_: PackageManager.NameNotFoundException) {
+            ApplicationInfo.CATEGORY_UNDEFINED
+        }
+        when (category) {
+            ApplicationInfo.CATEGORY_SOCIAL,
+            ApplicationInfo.CATEGORY_VIDEO,
+            ApplicationInfo.CATEGORY_GAME,
+            ApplicationInfo.CATEGORY_NEWS -> AppCategory.DISTRACTING
+            ApplicationInfo.CATEGORY_PRODUCTIVITY -> AppCategory.PRODUCTIVE
+            else -> AppCategory.NEUTRAL
+        }
     }
 
     /** Every installed home-screen app. */

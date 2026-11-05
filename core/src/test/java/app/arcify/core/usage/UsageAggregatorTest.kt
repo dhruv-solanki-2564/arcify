@@ -48,6 +48,21 @@ class UsageAggregatorTest {
     }
 
     @Test
+    fun launchesCountEachTimeTheAppIsOpenedInTheWindow() {
+        val events = listOf(
+            bg("a", 50), // already open at the window start: time counts, launch doesn't
+            fg("a", 100, "A"),
+            fg("a", 150, "B"), // second screen of the same visit
+            bg("a", 160, "A"),
+            bg("a", 300, "B"),
+            fg("a", 1_000),
+            bg("a", 1_200),
+        )
+        val stats = UsageAggregator.stats(events, 0, 2_000)
+        assertEquals(AppUsage(foregroundMs = 50 + 200 + 200, launches = 2), stats["a"])
+    }
+
+    @Test
     fun sessionsAreClippedToTheWindowAndUnsortedInputIsFine() {
         val events = listOf(bg("b", 2_500), fg("b", 1_500), fg("c", 3_000))
         val totals = UsageAggregator.foregroundTime(events, 0, 2_000)

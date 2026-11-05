@@ -12,3 +12,11 @@
 - **F13 Notification batching** (new, optional): user picks apps whose notifications are held and delivered at chosen times (e.g. every hour or at :00). Allowlist for instant apps. Requires notification-listener access.
 - **F14 Study wake alarm** (new, optional): an alarm that can only be dismissed by starting a focus session or completing a short task. Snooze is limited.
 - Streaks: `StreakDay(date, kind = FOCUS_GOAL|LIMITS|SHORTS_FREE)`.
+
+## Implementation (M6)
+- **Nudges** (pure, tested; `core/.../nudge/Nudges.kt`). Each fires at most once a day, and can be switched off in Schedule:
+  - **Start focus**: after 17:00 with no focus yet today.
+  - **Streak at risk**: after 20:00 when a focus-goal streak of 2 or more days would break tonight.
+- **Runner**: `NudgeRunner` is called by the hourly `ArcifyWorker` (WorkManager, with dependencies from a Hilt entry point).
+- **Streaks are computed on the fly** from stored history (`StreakRules`); no `StreakDay` table is needed.
+- **F13 notification batching and F14 study wake alarm**: the user confirmed both on 2026-11-05. Planned for M6b, together with the adult-site list.
