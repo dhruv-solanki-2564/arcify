@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import app.arcify.MainActivity
+import app.arcify.blocker.Diag
 import app.arcify.core.alarm.WakeAlarm
 import app.arcify.core.alarm.WakeAlarmRules
 import app.arcify.core.data.WakeAlarmRepository
@@ -33,9 +34,11 @@ object WakeAlarms {
         val alarms = context.getSystemService(AlarmManager::class.java) ?: return
         if (next == null) {
             alarms.cancel(pending)
+            Diag.log("wake alarm: none armed")
             return
         }
         setAlarmClock(context, alarms, next.second, pending)
+        Diag.log("wake alarm ${next.first.id} armed for ${java.time.Instant.ofEpochMilli(next.second)}")
     }
 
     /** Rings [alarm] again in its snooze time, counting the snooze. */
@@ -76,6 +79,7 @@ class WakeAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val alarmId = intent.getLongExtra(WakeAlarms.EXTRA_ALARM_ID, -1L)
         val snoozesUsed = intent.getIntExtra(WakeAlarms.EXTRA_SNOOZES_USED, 0)
+        Diag.log("wake alarm $alarmId ringing (snoozes used: $snoozesUsed)")
         ContextCompat.startForegroundService(context, WakeAlarmService.ringIntent(context, alarmId, snoozesUsed))
         val pending = goAsync()
         val repository = context.appEntryPoint().wakeAlarmRepository()
