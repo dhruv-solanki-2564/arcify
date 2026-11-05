@@ -4,7 +4,10 @@ import android.accessibilityservice.AccessibilityService
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
+import app.arcify.blocker.content.BlockBanner
+import app.arcify.blocker.content.ContentBlock
 import app.arcify.blocker.content.ContentGuard
+import app.arcify.core.content.IgSurface
 import app.arcify.blocker.content.ContentState
 import app.arcify.blocker.content.NodeSnapshots
 import app.arcify.blocker.content.ShortFormStore
@@ -85,6 +88,8 @@ class ArcifyAccessibilityService : AccessibilityService() {
     private var lastScreenCheck = 0L
     private var windowJob: Job? = null
     private val cooldown = ActionCooldown()
+    private val banner: BlockBanner by lazy { BlockBanner(this) }
+    private var lastNote: String? = null
     private val appLabel: String by lazy { applicationInfo.loadLabel(packageManager).toString() }
     private val serviceLabel: String by lazy { getString(R.string.accessibility_service_label) }
     private val guard: ContentGuard by lazy {
@@ -152,22 +157,12 @@ class ArcifyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            refreshForeground()
             scheduleWindowCheck()
             return
         }
         val pkg = event.packageName?.toString() ?: return
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val cls = event.className?.toString()
-            // Launchers also emit window events from animations and widgets while another app
-            // opens; they only count as "in front" if they really own the active window.
-            val isScreen = appCatalog.isActivity(pkg, cls) ||
-                (pkg in launchers && rootInActiveWindow?.packageName?.toString() == pkg)
-            if (isScreen && pkg != foreground) {
-                Diag.log("foreground $foreground -> $pkg ($cls)")
-                foreground = pkg
-                evaluate()
-            }
-        }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) refreshForeground()
         // Content is checked for whichever monitored app owns the active window; the
         // active-window root is verified again before inspecting.
         if (needsScreenCheck(pkg)) scheduleScreenCheck(pkg)
@@ -176,6 +171,7 @@ class ArcifyAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        banner.remove()
         scope.cancel()
         super.onDestroy()
     }
@@ -187,6 +183,27 @@ class ArcifyAccessibilityService : AccessibilityService() {
 
     // ---- App level ----
 
+    /**
+     * The app in front is whoever owns the *active application window*. Asking the system is
+     * reliable for every app; guessing from each app's own window events was not (some apps never
+     * report their screens as activities, so Arcify kept thinking the home screen was open).
+     * Keyboards, the notification shade and system overlays are not application windows, so they
+     * never count.
+     */
+    private fun activeAppPackage(): String? {
+        val active = windows.firstOrNull { it.isActive }
+        if (active != null && active.type != AccessibilityWindowInfo.TYPE_APPLICATION) return null
+        return (active?.root ?: rootInActiveWindow)?.packageName?.toString()
+    }
+
+    private fun refreshForeground() {
+        val pkg = activeAppPackage() ?: return
+        if (pkg == foreground) return
+        Diag.log("foreground $foreground -> $pkg")
+        foreground = pkg
+        evaluate()
+    }
+
     private fun evaluate() {
         val pkg = foreground ?: return
         evaluation?.cancel()
@@ -194,6 +211,13 @@ class ArcifyAccessibilityService : AccessibilityService() {
             val (decision, limit, usedMs) = decide(pkg)
             if (decision == BlockDecision.Allow) {
                 if (limit != null) remindIfClose(limit, usedMs)
+                return@launch
+            }
+            // Never act on a stale guess: the app must still own the active window right now.
+            val active = activeAppPackage()
+            if (active != null && active != pkg) {
+                Diag.log("not acting on $pkg: $active is in front")
+                refreshForeground()
                 return@launch
             }
             // Periodic re-checks and flow updates must not repeat an action that is still taking effect.
@@ -326,15 +350,35 @@ class ArcifyAccessibilityService : AccessibilityService() {
         val metrics = resources.displayMetrics
         val screen = Bounds(0, 0, metrics.widthPixels, metrics.heightPixels)
         val state = contentState.copy(timer = timerController.timer.value)
-        val block = guard.inspect(pkg, snapshot, screen, now, state) ?: return
-        // One Back per block: the events that follow while it takes effect are ignored for a moment.
+        val block = guard.inspect(pkg, snapshot, screen, now, state)
+        val note = guard.lastNote
+        if (note != null && note != lastNote) {
+            Diag.log("$pkg: $note")
+            lastNote = note
+        }
+        if (block == null) return
+        // One action per block: the events that follow while it takes effect are ignored for a moment.
         cooldown.start(pkg, SystemClock.uptimeMillis())
         Diag.log("content block in $pkg: $block")
+        leaveBlockedContent(root, block)
+        banner.show(block)
+    }
+
+    /**
+     * Leaves the blocked reel, Short or page while staying inside the app. On Instagram's Reels
+     * tab, tapping the Home tab is gentler than Back; everywhere else Back returns to where the
+     * user came from.
+     */
+    private fun leaveBlockedContent(root: android.view.accessibility.AccessibilityNodeInfo, block: ContentBlock) {
+        if (block is ContentBlock.ShortForm && block.platform == Platform.INSTAGRAM && block.surface == IgSurface.REELS_TAB) {
+            val home = root.findAccessibilityNodeInfosByViewId(INSTAGRAM_HOME_TAB).firstOrNull()
+            if (home != null && home.isVisibleToUser && home.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) return
+        }
         performGlobalAction(GLOBAL_ACTION_BACK)
-        screens.showContentBlock(block, pkg)
     }
 
     private companion object {
+        const val INSTAGRAM_HOME_TAB = "com.instagram.android:id/feed_tab"
         const val RECHECK_MS = 15_000L
         const val SCREEN_INTERVAL_MS = 300L
         const val WINDOW_CHECK_DELAY_MS = 400L

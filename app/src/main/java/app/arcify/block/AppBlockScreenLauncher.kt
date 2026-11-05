@@ -6,7 +6,6 @@ import android.os.SystemClock
 import app.arcify.MainActivity
 import app.arcify.blocker.AppCatalog
 import app.arcify.blocker.BlockScreenLauncher
-import app.arcify.blocker.content.ContentBlock
 import app.arcify.blocker.protection.Threat
 import app.arcify.core.block.BlockDecision
 import dagger.Binds
@@ -80,24 +79,6 @@ class AppBlockScreenLauncher @Inject constructor(
 
     override fun limitReminder(packageName: String, usedMs: Long, limitMs: Long) {
         BlockNotifications.postReminder(context, packageName, catalog.label(packageName), usedMs, limitMs)
-    }
-
-    override fun showContentBlock(block: ContentBlock, viaPackage: String) {
-        val intent = when (block) {
-            is ContentBlock.ShortForm -> BlockOverlayActivity.shortForm(context, viaPackage, block.platform, block.surface)
-            is ContentBlock.ShortFormLimit -> BlockOverlayActivity.shortFormLimit(
-                context,
-                viaPackage,
-                block.platform,
-                block.surface,
-                block.watched,
-                block.limit,
-            )
-
-            is ContentBlock.Channel -> BlockOverlayActivity.channel(context, viaPackage, block.channel)
-            is ContentBlock.Website -> BlockOverlayActivity.website(context, viaPackage, block.host, block.studyMode)
-        }
-        show("content:$viaPackage:${block::class.simpleName}", intent)
     }
 
     override fun showProtection(threat: Threat) {

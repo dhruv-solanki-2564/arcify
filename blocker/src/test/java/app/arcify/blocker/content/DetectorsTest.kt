@@ -64,28 +64,40 @@ class DetectorsTest {
         val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
         val screen = Screens.PORTRAIT
         // The stray off-screen "Reels" element must not make every reel look like the Reels tab.
-        assertEquals(IgSurface.FEED, tracker.surfaceForPlayer(Screens.reelInMainScreen("x", "feed_tab"), screen))
-        assertEquals(IgSurface.EXPLORE, tracker.surfaceForPlayer(Screens.reelInMainScreen("x", "search_tab"), screen))
-        assertEquals(IgSurface.REELS_TAB, tracker.surfaceForPlayer(Screens.reelsTabPlayer("x"), screen))
+        assertEquals(IgPlacement(IgSurface.FEED), tracker.placementForPlayer(Screens.reelInMainScreen("x", "feed_tab"), screen, "a"))
+        assertEquals(IgPlacement(IgSurface.EXPLORE), tracker.placementForPlayer(Screens.reelInMainScreen("x", "search_tab"), screen, "a"))
+        assertEquals(IgPlacement(IgSurface.REELS_TAB), tracker.placementForPlayer(Screens.reelsTabPlayer("x"), screen, "a"))
     }
 
     @Test
-    fun aReelSentInADmIsTheDmSurfaceUntilTheUserSwipesOn() {
+    fun onlyTheReelOpenedFromAChatIsTheDmSurface() {
         val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
         val screen = Screens.PORTRAIT
         tracker.observe(Screens.instagramDmThread(), screen)
-        assertEquals(IgSurface.DM, tracker.surfaceForPlayer(Screens.dmSharedReel("friend's reel"), screen))
-        // Swiping on loses the reply box: Instagram's endless suggested reels.
-        assertEquals(IgSurface.REELS_TAB, tracker.surfaceForPlayer(Screens.suggestedReel("random reel"), screen))
+        assertEquals(IgPlacement(IgSurface.DM), tracker.placementForPlayer(Screens.dmSharedReel("sent"), screen, "sent"))
+        // Still the same reel while it plays.
+        assertEquals(IgPlacement(IgSurface.DM), tracker.placementForPlayer(Screens.dmSharedReel("sent"), screen, "sent"))
+        // Any other reel in that viewer, with or without a reply box, is beyond the shared one.
+        assertEquals(
+            IgPlacement(IgSurface.DM, beyondSharedReel = true),
+            tracker.placementForPlayer(Screens.dmSharedReel("another"), screen, "another"),
+        )
+        assertEquals(
+            IgPlacement(IgSurface.DM, beyondSharedReel = true),
+            tracker.placementForPlayer(Screens.suggestedReel("random"), screen, "random"),
+        )
+        // Back in the chat, the next reel opened is a fresh shared reel.
+        tracker.observe(Screens.instagramDmThread(), screen)
+        assertEquals(IgPlacement(IgSurface.DM), tracker.placementForPlayer(Screens.dmSharedReel("other sent"), screen, "other sent"))
     }
 
     @Test
     fun fullScreenViewersInheritTheLastMainScreen() {
         val tracker = IgSurfaceTracker(DetectorDefaults.instagram)
         val screen = Screens.PORTRAIT
-        assertEquals(IgSurface.UNKNOWN, tracker.surfaceForPlayer(Screens.suggestedReel("x"), screen))
+        assertEquals(IgPlacement(IgSurface.UNKNOWN), tracker.placementForPlayer(Screens.suggestedReel("x"), screen, "x"))
         tracker.observe(Screens.instagramExplore(), screen)
-        assertEquals(IgSurface.EXPLORE, tracker.surfaceForPlayer(Screens.suggestedReel("x"), screen))
+        assertEquals(IgPlacement(IgSurface.EXPLORE), tracker.placementForPlayer(Screens.suggestedReel("x"), screen, "x"))
     }
 
     @Test

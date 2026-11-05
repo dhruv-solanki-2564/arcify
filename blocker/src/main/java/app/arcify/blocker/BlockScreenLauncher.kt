@@ -1,6 +1,5 @@
 package app.arcify.blocker
 
-import app.arcify.blocker.content.ContentBlock
 import app.arcify.blocker.protection.Threat
 import app.arcify.core.block.BlockDecision
 
@@ -17,9 +16,6 @@ interface BlockScreenLauncher {
 
     /** Once-a-day heads-up that an app is close to its limit. */
     fun limitReminder(packageName: String, usedMs: Long, limitMs: Long)
-
-    /** Content inside [viaPackage] was blocked; the engine has already navigated back. */
-    fun showContentBlock(block: ContentBlock, viaPackage: String)
 
     /** A screen that would disable or remove Arcify was closed; the engine has already gone home. */
     fun showProtection(threat: Threat)

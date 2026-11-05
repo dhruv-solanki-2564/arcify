@@ -34,6 +34,9 @@ sealed interface ContentBlock {
     data class Channel(val channel: String) : ContentBlock
 
     data class Website(val host: String, val studyMode: Boolean) : ContentBlock
+
+    /** DMs are allowed, but only the reel that was sent in the chat: swiping on to others is blocked. */
+    data object DmScroll : ContentBlock
 }
 
 /** Everything [ContentGuard] needs to decide, gathered by the service. */
@@ -66,6 +69,10 @@ class ContentGuard(
     private val deduper = ShortFormDeduper()
     private val igTracker = IgSurfaceTracker(instagramHints)
 
+    /** What the last inspection saw (for diagnostics logs; package names and surfaces only, no screen text). */
+    var lastNote: String? = null
+        private set
+
     /** True if [packageName] is one this guard looks inside. */
     fun monitors(packageName: String, state: ContentState): Boolean =
         packageName in ContentDefaults.shortFormApps || state.browsers.any { it.packageName == packageName }
@@ -86,7 +93,24 @@ class ContentGuard(
             }
             return null
         }
-        val surface = if (platform == Platform.INSTAGRAM) igTracker.surfaceForPlayer(root, screen) else null
+        if (platform != Platform.INSTAGRAM) {
+            lastNote = "$platform player item=${player.itemKey}"
+            return handleShortForm(ShortFormSighting(platform, packageName, null, player.itemKey, now), state)
+        }
+
+        val placement = igTracker.placementForPlayer(root, screen, player.itemKey)
+        lastNote = "instagram player surface=${placement.surface} beyondShared=${placement.beyondSharedReel} item=${player.itemKey}"
+        var surface = placement.surface
+        if (placement.beyondSharedReel) {
+            val dmRule = state.shortFormRules.firstOrNull { it.platform == Platform.INSTAGRAM && it.surface == IgSurface.DM }
+            if (dmRule?.mode == ShortFormMode.ALLOW) {
+                // "Allow DMs" means the reel that was sent, nothing more.
+                deduper.forget(packageName)
+                return ContentBlock.DmScroll
+            }
+            // Without an explicit DM rule, the swiped-to reels are Instagram's ordinary reels feed.
+            surface = IgSurface.REELS_TAB
+        }
         return handleShortForm(ShortFormSighting(platform, packageName, surface, player.itemKey, now), state)
     }
 

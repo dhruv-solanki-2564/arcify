@@ -113,33 +113,35 @@ data class InstagramHints(
  * Works out which Instagram surface a reel belongs to (Arcify's per-surface toggles, spec F04).
  *
  * - On the main screens (bottom tab bar visible), the selected bottom tab decides.
- * - A reel opened from a DM plays in a full-screen viewer with a "Reply to…" box: that is the DM
- *   surface. Swiping on from there loses the reply box and shows Instagram's endless suggested
- *   reels, which count as the Reels feed.
+ * - A reel opened from a DM chat plays in a full-screen viewer. Only the reel that was opened
+ *   (the one sent in the chat) belongs to the DM surface; any other reel reached by swiping in
+ *   that viewer is [IgPlacement.beyondSharedReel].
  * - Other full-screen viewers inherit the last main screen seen (feed, Explore).
  */
 class IgSurfaceTracker(private val hints: InstagramHints) {
     private var lastContext: IgSurface = IgSurface.UNKNOWN
 
-    /** Feed every non-player screen through here. */
+    /** The reel opened from a DM chat, while its viewer is open. */
+    private var sharedReelKey: String? = null
+
+    /** Feed every non-player screen through here. Leaving the viewer ends the DM reel. */
     fun observe(root: NodeSnapshot, screen: Bounds) {
         classify(root, screen)?.let { lastContext = it }
+        sharedReelKey = null
     }
 
-    fun surfaceForPlayer(root: NodeSnapshot, screen: Bounds): IgSurface {
-        if (hasTabBar(root)) {
-            return selectedTab(root, screen) ?: lastContext
+    fun placementForPlayer(root: NodeSnapshot, screen: Bounds, itemKey: String): IgPlacement {
+        if (hasTabBar(root)) return IgPlacement(selectedTab(root, screen) ?: lastContext)
+        if (lastContext == IgSurface.DM || hasDmReplyBox(root)) {
+            val shared = sharedReelKey ?: itemKey.also { sharedReelKey = it }
+            return IgPlacement(IgSurface.DM, beyondSharedReel = itemKey != shared)
         }
-        if (hasDmReplyBox(root)) return IgSurface.DM
-        return when (lastContext) {
-            // Left the shared reel and kept swiping: the suggested-reels feed.
-            IgSurface.DM -> IgSurface.REELS_TAB
-            else -> lastContext
-        }
+        return IgPlacement(lastContext)
     }
 
     fun reset() {
         lastContext = IgSurface.UNKNOWN
+        sharedReelKey = null
     }
 
     internal fun classify(root: NodeSnapshot, screen: Bounds): IgSurface? =
@@ -172,6 +174,12 @@ class IgSurfaceTracker(private val hints: InstagramHints) {
             ?.let { text -> hints.dmComposerPrefixes.any { text.startsWith(it) } } == true
     }
 }
+
+/**
+ * Where an Instagram reel is. [beyondSharedReel] means the user opened a reel from a DM chat
+ * and then swiped on to a different one.
+ */
+data class IgPlacement(val surface: IgSurface, val beyondSharedReel: Boolean = false)
 
 /** True for bounds that are really on the screen (Instagram reports some off-screen nodes as selected). */
 internal fun Bounds.isOnScreen(screen: Bounds): Boolean =
@@ -251,7 +259,9 @@ object DetectorDefaults {
             ":id/message_thread_container",
             ":id/reel_share_item_view",
         ),
-        dmComposerPrefixes = listOf("reply to", "message"),
+        // Only the reply box under a reel sent in a chat. Other viewers have comment boxes, so
+        // generic words like "message" are not used.
+        dmComposerPrefixes = listOf("reply to"),
     )
 
     val youtube = YouTubeHints(

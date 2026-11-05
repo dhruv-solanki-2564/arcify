@@ -1,6 +1,5 @@
 package app.arcify.blocker
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -22,7 +21,6 @@ class AppCatalog @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     private val pm: PackageManager get() = context.packageManager
-    private val activityCache = ConcurrentHashMap<String, Boolean>()
     private val categoryCache = ConcurrentHashMap<String, AppCategory>()
     private val launchableCache = ConcurrentHashMap<String, Boolean>()
 
@@ -101,23 +99,6 @@ class AppCatalog @Inject constructor(
      */
     fun isUserFacing(packageName: String): Boolean = launchableCache.getOrPut(packageName) {
         pm.getLaunchIntentForPackage(packageName) != null
-    }
-
-    /**
-     * Whether a window event came from a real app screen rather than a dialog, toast, keyboard or
-     * system overlay. Only screens change which app counts as "open".
-     */
-    fun isActivity(packageName: String, className: String?): Boolean {
-        if (className.isNullOrEmpty()) return false
-        val key = "$packageName/$className"
-        return activityCache.getOrPut(key) {
-            try {
-                pm.getActivityInfo(ComponentName(packageName, className), 0)
-                true
-            } catch (_: PackageManager.NameNotFoundException) {
-                false
-            }
-        }
     }
 
     private companion object {
