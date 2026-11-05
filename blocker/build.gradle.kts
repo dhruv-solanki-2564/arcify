@@ -33,4 +33,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    // Android's org.json is only a stub in JVM unit tests; use the real library there.
+    testImplementation(libs.org.json)
 }

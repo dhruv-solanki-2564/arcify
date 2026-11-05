@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- M3 only needs to know which app is in front. M4 (Shorts/Reels, websites) will add content events
-     and window-content access. -->
+<!-- Window changes tell the engine which app is in front (limits, strict focus). Content and scroll
+     events plus window content are read only for monitored apps and browsers (Shorts/Reels,
+     YouTube study mode, websites). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:canRetrieveWindowContent="false"
+    android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
+    android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:notificationTimeout="100" />
+    android:notificationTimeout="150" />

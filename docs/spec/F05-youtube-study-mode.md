@@ -21,3 +21,9 @@
 - Detection: on a YouTube watch page, read the channel name/handle node under the player. If it's not in the list and Study Mode is on, go back and show the overlay. Shorts stay governed by F04.
 - Matching is case-insensitive on handle first, then display name.
 - No network calls: adding a channel stores what the user typed. Optional verification happens on-device the next time that channel is seen.
+
+## Implementation (M4)
+- **Active** during focus phases of any session (strict or not) while the switch is on. During strict focus it also keeps YouTube itself usable, since its content is policed instead. Shorts are blocked while it's active.
+- **Matching** (`StudyChannelPolicy`, tested): a compact form (lower case, letters and digits only), so "Lofi Girl" == "@LofiGirl". Input accepts a name, an @handle or a `youtube.com/@handle…` link.
+- **Defaults** are seeded once on first run (`study_channel` table); "Reset to defaults" restores them. Handles for Lofi Records and Chillhop Raccoon are unknown, and **all handles are unverified**.
+- **Channel detection** on watch pages (`YouTubeChannelDetector`) uses guessed hints (view-ID fragments, a "go to channel" description prefix). **⚠️ Unverified.** It fails open: if no channel is found, nothing is blocked.

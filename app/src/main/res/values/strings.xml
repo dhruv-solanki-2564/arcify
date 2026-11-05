@@ -90,4 +90,82 @@
     <string name="allowed_empty">No extra apps allowed.</string>
     <string name="allowed_add">Add app</string>
     <string name="allowed_reset">Reset to defaults</string>
+
+    <!-- Block hub -->
+    <string name="section_limits">App limits &amp; strict focus</string>
+    <string name="section_limits_summary">Daily time limits per app, and which apps stay usable in strict focus.</string>
+    <string name="section_shorts">Shorts &amp; Reels</string>
+    <string name="section_shorts_summary">Block, allow or cap short videos, with separate Instagram rules for DMs, feed, Explore and the Reels tab. See today\'s counts.</string>
+    <string name="section_youtube">YouTube study mode</string>
+    <string name="section_youtube_summary">While you focus, YouTube only plays your study channels.</string>
+    <string name="section_websites">Websites &amp; browsers</string>
+    <string name="section_websites_summary">Block sites, or allow only study sites while you focus.</string>
+
+    <!-- Short-form names and Instagram surfaces -->
+    <string name="shortform_instagram">Instagram Reels</string>
+    <string name="shortform_youtube">YouTube Shorts</string>
+    <string name="shortform_snapchat">Snapchat Spotlight</string>
+    <string name="shortform_facebook">Facebook Reels</string>
+    <string name="surface_reels_tab">Reels tab</string>
+    <string name="surface_feed">Home feed</string>
+    <string name="surface_explore">Search &amp; Explore</string>
+    <string name="surface_dm">DMs (reels friends send you)</string>
+    <string name="surface_unknown">somewhere in Instagram</string>
+
+    <!-- Content block screens -->
+    <string name="block_ok">OK</string>
+    <string name="block_shortform_title">%s are blocked</string>
+    <string name="block_shortform_body">You chose to block these. Arcify took you back.</string>
+    <string name="block_shortform_body_surface">Your rules block them in %s. Arcify took you back.</string>
+    <string name="block_shortform_limit_title">Daily limit reached</string>
+    <string name="block_shortform_limit_body">You\'ve watched %1$d %2$s today. Your limit is %3$d. They unlock again at midnight.</string>
+    <string name="block_channel_title">Not on your study list</string>
+    <string name="block_channel_body">%s isn\'t one of your study channels. YouTube study mode is on while you focus.</string>
+    <string name="block_website_title">%s is blocked</string>
+    <string name="block_website_body">It\'s on your blocked websites list.</string>
+    <string name="block_website_body_study">Browser study mode only opens your allowed sites while you focus.</string>
+
+    <!-- Shorts & Reels screen -->
+    <string name="shorts_today">Today</string>
+    <string name="shorts_today_empty">Nothing watched yet today.</string>
+    <string name="shorts_count_row">%1$s · %2$s: %3$d</string>
+    <string name="shorts_rules">Rules</string>
+    <string name="shorts_rules_desc">Allow keeps counting without blocking. Limit allows a number of videos per day, then blocks the rest until midnight.</string>
+    <string name="shorts_ig_surfaces">Instagram, by where the reel was opened</string>
+    <string name="shorts_lock_confirm_body">Until midnight the rule for %s can only get stricter.</string>
+    <string name="rule_inherit">Same as Instagram</string>
+    <string name="rule_allow">Allow</string>
+    <string name="rule_block">Block</string>
+    <string name="rule_limit">Limit</string>
+    <string name="rule_limit_hint">Videos per day:</string>
+    <string name="recorder_title">Detector calibration (debug build)</string>
+    <string name="recorder_desc">Saves the layout of Instagram, YouTube and browser screens to this phone so the detectors can be tuned. Text is redacted and nothing leaves the phone. Turn off when done.</string>
+
+    <!-- YouTube study mode screen -->
+    <string name="youtube_study_mode">YouTube study mode</string>
+    <string name="youtube_study_mode_desc">While a focus session runs, YouTube only plays videos from the channels below, and Shorts are blocked.</string>
+    <string name="youtube_detection_note">Early version: channel detection inside the YouTube app still needs checking on real phones.</string>
+    <string name="youtube_channels">Study channels</string>
+    <string name="youtube_channels_empty">No channels. Add one, or reset to the default lo-fi list.</string>
+    <string name="youtube_add_hint">Channel name, @handle or link</string>
+    <string name="channel_invalid">Type a channel name, @handle or link.</string>
+    <string name="add">Add</string>
+    <string name="reset_defaults">Reset to defaults</string>
+
+    <!-- Websites & browsers screen -->
+    <string name="browser_study_mode">Browser study mode</string>
+    <string name="browser_study_mode_desc">While a focus session runs, browsers only open the sites you allow below.</string>
+    <string name="websites_title">Websites</string>
+    <string name="websites_desc">A rule like example.com covers its subdomains too. Add a path (youtube.com/shorts) to cover just part of a site.</string>
+    <string name="websites_empty">No website rules yet.</string>
+    <string name="website_blocked">Blocked</string>
+    <string name="website_allowed">Allowed in study mode</string>
+    <string name="website_add_hint">Website, e.g. reddit.com</string>
+    <string name="website_add_block">Block</string>
+    <string name="website_add_allow">Allow</string>
+    <string name="website_invalid">That doesn\'t look like a website, or its rule is locked.</string>
+    <string name="website_lock_confirm_body">Until midnight you won\'t be able to remove the block on %s.</string>
+    <string name="browsers_title">Browsers</string>
+    <string name="browsers_desc">Arcify reads the address bar of these browsers. Chrome and Brave are set up by default.</string>
+    <string name="browsers_add">Add browser</string>
 </resources>

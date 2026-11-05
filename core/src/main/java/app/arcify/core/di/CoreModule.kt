@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import app.arcify.core.data.AppLimitDao
 import app.arcify.core.data.ArcifyDatabase
+import app.arcify.core.data.ContentDao
 import app.arcify.core.data.FocusSessionDao
 import app.arcify.core.data.StrictAllowedAppDao
 import app.arcify.core.data.TagDao
@@ -39,6 +40,9 @@ object CoreModule {
 
     @Provides
     fun strictAllowedAppDao(db: ArcifyDatabase): StrictAllowedAppDao = db.strictAllowedAppDao()
+
+    @Provides
+    fun contentDao(db: ArcifyDatabase): ContentDao = db.contentDao()
 
     @Provides
     @Singleton

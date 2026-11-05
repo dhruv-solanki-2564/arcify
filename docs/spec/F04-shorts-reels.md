@@ -46,3 +46,26 @@ Four independent switches, each **Block** / **Allow**:
 
 ## Data
 `ShortFormEvent(date, source, surface?, itemHash, at)`, `ShortFormRule(source, surface?, mode = BLOCK|ALLOW|LIMIT, limitN?)`, `MonitoredBrowser(package, urlBarIds[])`.
+
+## Implementation (M4)
+- **Rules** (pure, tested): `core/.../content/ShortForm.kt`.
+  - `ShortFormPolicy`: a surface rule wins over the platform rule; an unknown Instagram surface uses the strictest Instagram rule.
+  - Limit logic; strict locks only tighten.
+  - `ShortFormDeduper`: an item counts once while it plays, and swiping straight back within 10 s doesn't recount.
+- **Browser detection** (tested): `ShortFormUrls` recognises `instagram.com/reel(s)/…`, `youtube.com/shorts/…` and `facebook.com/reel(s)/…`. It reads the address bar via `MonitoredBrowser.urlBarIds` (defaults Chrome and Brave). Browser reels count as Instagram surface *unknown*.
+- **In-app detection** (`blocker/.../content/Detectors.kt`):
+  - `ShortFormDetector` looks for ≥3 interaction controls stacked in the right 28 % of a portrait screen. The item key is a hash of the caption/author text in the lower-left.
+  - `IgSurfaceTracker` remembers the last non-player screen (selected bottom tab, or a DM thread with a message composer).
+  - The heuristics are Arcify's own. **⚠️ Unverified on real apps.** The tests use hand-built layouts, not recordings.
+- **Engine**: `ContentGuard` (tested) plus `ArcifyAccessibilityService`. Content, scroll and window events are read only for monitored packages, at most once every 300 ms. On a block the service presses Back and shows the block screen.
+- **Storage**: Room v3. Tables `short_form_rule` (empty-string surface key = all surfaces) and `short_form_event` (per local day).
+- **UI**: Block → Shorts & Reels.
+  - Today's counts per app or browser.
+  - Allow / Block / Limit (5–50 per day) per platform, with Instagram surface rows that can inherit the Instagram rule.
+  - Lock for today.
+- **Calibration aid**: a debug-only `SnapshotRecorder` saves redacted screen trees to `files/snapshots/`. Turn it on in the Shorts screen.
+- **Not yet**:
+  - Calibrating the detectors against recordings.
+  - A live counter chip / floating counter.
+  - User-editable detector labels per language.
+  - JSON import/export of rules.

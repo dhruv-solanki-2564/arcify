@@ -70,14 +70,20 @@ interface TagDao {
         FocusSessionEntity::class,
         AppLimitEntity::class,
         StrictAllowedAppEntity::class,
+        ShortFormRuleEntity::class,
+        ShortFormEventEntity::class,
+        StudyChannelEntity::class,
+        WebsiteRuleEntity::class,
+        MonitoredBrowserEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class ArcifyDatabase : RoomDatabase() {
     abstract fun focusSessionDao(): FocusSessionDao
     abstract fun tagDao(): TagDao
     abstract fun appLimitDao(): AppLimitDao
     abstract fun strictAllowedAppDao(): StrictAllowedAppDao
+    abstract fun contentDao(): ContentDao
 }

@@ -1,11 +1,11 @@
 package app.arcify.ui.block
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,41 +27,32 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.arcify.R
-import app.arcify.blocker.BlockerPermissions
 import app.arcify.blocker.InstalledApp
 import app.arcify.core.util.formatShortDuration
 
+/** Daily app limits and the strict-focus allowed list (F02/F03). */
 @Composable
-fun BlockRoute(viewModel: BlockViewModel = hiltViewModel()) {
+fun LimitsRoute(viewModel: BlockViewModel = hiltViewModel()) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
         onPauseOrDispose { }
     }
-    LaunchedEffect(Unit) {
-        viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
-    }
-
-    BlockScreen(
+    MessageToasts(viewModel.messages)
+    LimitsScreen(
         ui = ui,
-        onOpenAccessibility = { context.startActivity(BlockerPermissions.accessibilitySettings()) },
-        onOpenUsageAccess = { context.startActivity(BlockerPermissions.usageAccessSettings()) },
         onAddLimit = { pkg, minutes -> viewModel.addLimit(pkg, minutes) },
         onToggleLimit = { row, enabled -> viewModel.setEnabled(row, enabled) },
         onDeleteLimit = { viewModel.delete(it) },
@@ -77,10 +68,8 @@ private enum class PickTarget { LIMIT, ALLOWED }
 private val LimitPresetsMin = listOf(15, 30, 45, 60, 90, 120)
 
 @Composable
-fun BlockScreen(
+fun LimitsScreen(
     ui: BlockUiState,
-    onOpenAccessibility: () -> Unit,
-    onOpenUsageAccess: () -> Unit,
     onAddLimit: (String, Int) -> Unit,
     onToggleLimit: (LimitRow, Boolean) -> Unit,
     onDeleteLimit: (LimitRow) -> Unit,
@@ -96,28 +85,9 @@ fun BlockScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { SectionTitle(R.string.block_permissions_title) }
-        item {
-            PermissionRow(
-                title = stringResource(R.string.perm_accessibility),
-                description = stringResource(R.string.perm_accessibility_desc),
-                granted = ui.permissions.accessibility,
-                onTurnOn = onOpenAccessibility,
-            )
-        }
-        item {
-            PermissionRow(
-                title = stringResource(R.string.perm_usage),
-                description = stringResource(R.string.perm_usage_desc),
-                granted = ui.permissions.usageAccess,
-                onTurnOn = onOpenUsageAccess,
-            )
-        }
-
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionTitle(R.string.limits_title) }
         if (ui.limits.isEmpty()) {
             item { Text(stringResource(R.string.limits_empty), style = MaterialTheme.typography.bodyMedium) }
@@ -186,40 +156,14 @@ fun BlockScreen(
     }
 
     confirmLock?.let { row ->
-        AlertDialog(
-            onDismissRequest = { confirmLock = null },
-            title = { Text(stringResource(R.string.limit_lock_confirm_title)) },
-            text = { Text(stringResource(R.string.limit_lock_confirm_body, row.label)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmLock = null
-                    onLockLimit(row)
-                }) { Text(stringResource(R.string.confirm_lock)) }
+        ConfirmLockDialog(
+            body = stringResource(R.string.limit_lock_confirm_body, row.label),
+            onConfirm = {
+                confirmLock = null
+                onLockLimit(row)
             },
-            dismissButton = {
-                TextButton(onClick = { confirmLock = null }) { Text(stringResource(R.string.cancel)) }
-            },
+            onDismiss = { confirmLock = null },
         )
-    }
-}
-
-@Composable
-private fun SectionTitle(text: Int) {
-    Text(stringResource(text), style = MaterialTheme.typography.titleLarge)
-}
-
-@Composable
-private fun PermissionRow(title: String, description: String, granted: Boolean, onTurnOn: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(description, style = MaterialTheme.typography.bodySmall)
-        }
-        if (granted) {
-            Text(stringResource(R.string.perm_on), style = MaterialTheme.typography.labelLarge)
-        } else {
-            Button(onClick = onTurnOn) { Text(stringResource(R.string.perm_turn_on)) }
-        }
     }
 }
 
@@ -241,11 +185,7 @@ private fun LimitItem(row: LimitRow, onToggle: (Boolean) -> Unit, onDelete: () -
             Switch(checked = row.limit.enabled, onCheckedChange = onToggle, enabled = !row.locked)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (row.locked) {
-                Text(stringResource(R.string.limit_locked_until_midnight), style = MaterialTheme.typography.labelMedium)
-            } else {
-                TextButton(onClick = onLock) { Text(stringResource(R.string.limit_lock)) }
-            }
+            LockControl(locked = row.locked, onLock = onLock)
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onDelete, enabled = !row.locked) {
                 Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
@@ -254,8 +194,29 @@ private fun LimitItem(row: LimitRow, onToggle: (Boolean) -> Unit, onDelete: () -
     }
 }
 
+/** "Lock for today" button, or the locked label once locked. */
 @Composable
-private fun AppPickerDialog(apps: List<InstalledApp>?, onPick: (InstalledApp) -> Unit, onDismiss: () -> Unit) {
+internal fun LockControl(locked: Boolean, onLock: () -> Unit) {
+    if (locked) {
+        Text(stringResource(R.string.limit_locked_until_midnight), style = MaterialTheme.typography.labelMedium)
+    } else {
+        TextButton(onClick = onLock) { Text(stringResource(R.string.limit_lock)) }
+    }
+}
+
+@Composable
+internal fun ConfirmLockDialog(body: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.limit_lock_confirm_title)) },
+        text = { Text(body) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.confirm_lock)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+@Composable
+internal fun AppPickerDialog(apps: List<InstalledApp>?, onPick: (InstalledApp) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.pick_app_title)) },

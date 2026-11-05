@@ -24,7 +24,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import app.arcify.R
-import app.arcify.ui.block.BlockRoute
+import app.arcify.ui.block.BlockHubRoute
+import app.arcify.ui.block.BlockSection
+import app.arcify.ui.block.LimitsRoute
+import app.arcify.ui.block.ShortsRoute
+import app.arcify.ui.block.WebsitesRoute
+import app.arcify.ui.block.YouTubeStudyRoute
 import app.arcify.ui.focus.FocusRoute
 
 private enum class TopLevel(val route: String, @param:StringRes val label: Int, val icon: ImageVector) {
@@ -46,7 +51,8 @@ fun ArcifyRoot() {
             NavigationBar {
                 TopLevel.entries.forEach { destination ->
                     NavigationBarItem(
-                        selected = currentRoute == destination.route,
+                        // Sub-screens ("block/shorts") keep their tab highlighted.
+                        selected = currentRoute?.substringBefore('/') == destination.route,
                         onClick = {
                             navController.navigate(destination.route) {
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -67,7 +73,13 @@ fun ArcifyRoot() {
             modifier = Modifier.padding(padding),
         ) {
             composable(TopLevel.FOCUS.route) { FocusRoute() }
-            composable(TopLevel.BLOCK.route) { BlockRoute() }
+            composable(TopLevel.BLOCK.route) {
+                BlockHubRoute(onOpen = { section -> navController.navigate(section.route) })
+            }
+            composable(BlockSection.LIMITS.route) { LimitsRoute() }
+            composable(BlockSection.SHORTS.route) { ShortsRoute() }
+            composable(BlockSection.YOUTUBE.route) { YouTubeStudyRoute() }
+            composable(BlockSection.WEBSITES.route) { WebsitesRoute() }
             composable(TopLevel.SCHEDULE.route) {
                 PlaceholderScreen(R.string.nav_schedule, R.string.placeholder_schedule)
             }
