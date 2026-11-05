@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.arcify.MainActivity
 import app.arcify.R
+import app.arcify.blocker.protection.Threat
 import app.arcify.core.content.IgSurface
 import app.arcify.core.content.Platform
 import app.arcify.core.timer.ActiveTimer
@@ -86,7 +87,8 @@ class BlockOverlayActivity : ComponentActivity() {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             )
 
-            BlockReason.SHORT_FORM, BlockReason.SHORT_FORM_LIMIT, BlockReason.CHANNEL, BlockReason.WEBSITE -> Unit
+            BlockReason.SHORT_FORM, BlockReason.SHORT_FORM_LIMIT, BlockReason.CHANNEL, BlockReason.WEBSITE,
+            BlockReason.PROTECTION -> Unit
         }
         finish()
     }
@@ -139,6 +141,9 @@ class BlockOverlayActivity : ComponentActivity() {
                 .putExtra(EXTRA_DETAIL, host)
                 .putExtra(EXTRA_STUDY, studyMode)
 
+        fun protection(context: Context, threat: Threat): Intent =
+            base(context, BlockReason.PROTECTION, context.packageName).putExtra(EXTRA_DETAIL, threat.name)
+
         private fun base(context: Context, reason: BlockReason, packageName: String): Intent =
             Intent(context, BlockOverlayActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -165,7 +170,7 @@ class BlockOverlayActivity : ComponentActivity() {
     }
 }
 
-enum class BlockReason { LIMIT, STRICT_FOCUS, SHORT_FORM, SHORT_FORM_LIMIT, CHANNEL, WEBSITE }
+enum class BlockReason { LIMIT, STRICT_FOCUS, SHORT_FORM, SHORT_FORM_LIMIT, CHANNEL, WEBSITE, PROTECTION }
 
 data class BlockContent(
     val reason: BlockReason,
@@ -270,6 +275,19 @@ private fun BlockOverlayScreen(content: BlockContent, timer: ActiveTimer?, now: 
                     Body(
                         stringResource(
                             if (content.studyMode) R.string.block_website_body_study else R.string.block_website_body,
+                        ),
+                    )
+                    Button(onClick = onLeave) { Text(stringResource(R.string.block_ok)) }
+                }
+
+                BlockReason.PROTECTION -> {
+                    Title(stringResource(R.string.block_protection_title))
+                    Body(
+                        stringResource(
+                            when (content.detail) {
+                                Threat.UNINSTALL.name, Threat.STORE.name -> R.string.block_protection_uninstall
+                                else -> R.string.block_protection_settings
+                            },
                         ),
                     )
                     Button(onClick = onLeave) { Text(stringResource(R.string.block_ok)) }

@@ -15,16 +15,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,6 +45,7 @@ import app.arcify.core.timer.ActiveTimer
 import app.arcify.core.timer.FocusTimer
 import app.arcify.core.timer.MINUTE_MS
 import app.arcify.core.timer.PomodoroConfig
+import app.arcify.core.protection.HardExit
 import app.arcify.core.timer.TimerMode
 import app.arcify.core.util.formatDuration
 import app.arcify.timer.TimerText
@@ -48,6 +54,7 @@ import app.arcify.timer.TimerText
 fun FocusRoute(viewModel: FocusViewModel = hiltViewModel()) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val pomodoro by viewModel.pomodoro.collectAsStateWithLifecycle()
+    val hardExitEnabled by viewModel.hardExitEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -67,6 +74,8 @@ fun FocusRoute(viewModel: FocusViewModel = hiltViewModel()) {
         onPause = viewModel::pause,
         onResume = viewModel::resume,
         onStop = viewModel::stop,
+        hardExitEnabled = hardExitEnabled,
+        onEmergencyExit = viewModel::emergencyExit,
     )
 }
 
@@ -79,6 +88,8 @@ fun FocusScreen(
     onResume: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
+    hardExitEnabled: Boolean = false,
+    onEmergencyExit: (String) -> Boolean = { false },
 ) {
     Column(
         modifier = modifier
@@ -96,7 +107,7 @@ fun FocusScreen(
         if (timer == null) {
             SetupPanel(pomodoro, onStart)
         } else {
-            RunningPanel(timer, ui.now, onPause, onResume, onStop)
+            RunningPanel(timer, ui.now, onPause, onResume, onStop, hardExitEnabled, onEmergencyExit)
         }
     }
 }
@@ -177,7 +188,10 @@ private fun RunningPanel(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
+    hardExitEnabled: Boolean,
+    onEmergencyExit: (String) -> Boolean,
 ) {
+    var exiting by rememberSaveable { mutableStateOf(false) }
     val phase = stringResource(TimerText.phaseLabel(timer))
     Text(
         if (timer.isRunning) phase else "$phase · ${stringResource(R.string.paused)}",
@@ -198,4 +212,43 @@ private fun RunningPanel(
         }
         Button(onClick = onStop, enabled = FocusTimer.canStop(timer)) { Text(stringResource(R.string.stop)) }
     }
+    if (timer.strict && hardExitEnabled) {
+        TextButton(onClick = { exiting = true }) { Text(stringResource(R.string.hard_exit_button)) }
+    }
+    if (exiting) {
+        EmergencyExitDialog(onConfirm = onEmergencyExit, onDismiss = { exiting = false })
+    }
+}
+
+/** Asks for the exact phrase before ending a strict session (spec F02). */
+@Composable
+private fun EmergencyExitDialog(onConfirm: (String) -> Boolean, onDismiss: () -> Unit) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.hard_exit_dialog_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.hard_exit_dialog_body))
+                Text("\"${HardExit.PHRASE}\"", style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = {
+                        input = it
+                        wrong = false
+                    },
+                    isError = wrong,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (wrong) Text(stringResource(R.string.hard_exit_wrong), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (onConfirm(input)) onDismiss() else wrong = true
+            }) { Text(stringResource(R.string.hard_exit_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }

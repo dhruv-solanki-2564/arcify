@@ -141,6 +141,16 @@ object FocusTimer {
         return advanced.events + TimerEvent.SessionFinished(summarize(remaining, now, completed))
     }
 
+    /**
+     * Ends any session immediately, strict or not: the emergency exit (spec F02). Pending phase
+     * completions are applied first; a session still running counts as not completed.
+     */
+    fun abandon(timer: ActiveTimer, now: Long): List<TimerEvent> {
+        val advanced = advance(timer, now)
+        val remaining = advanced.timer ?: return advanced.events
+        return advanced.events + TimerEvent.SessionFinished(summarize(remaining, now, completed = false))
+    }
+
     private fun summarize(timer: ActiveTimer, endedAt: Long, completed: Boolean) = SessionSummary(
         modeKey = timer.mode.key,
         tagId = timer.tagId,

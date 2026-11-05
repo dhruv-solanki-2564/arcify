@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="accessibility_service_label">Arcify blocker</string>
+    <string name="device_admin_label">Arcify uninstall protection</string>
+    <string name="device_admin_explanation">While this is on, Arcify can\'t be uninstalled until you switch it off here. Arcify never locks, wipes or manages your phone.</string>
+    <string name="device_admin_disable_warning">Turning this off removes Arcify\'s uninstall protection.</string>
     <string name="accessibility_service_description">Arcify uses this to see which app is open and, in apps you choose to control (like Instagram, YouTube and your browser), what is on screen. That lets it enforce your app limits, strict focus, Shorts and Reels rules, study modes and blocked websites. Everything is processed on your phone. Nothing is sent anywhere.</string>
 </resources>

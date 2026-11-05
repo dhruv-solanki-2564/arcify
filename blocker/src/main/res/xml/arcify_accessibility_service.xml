@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Window changes tell the engine which app is in front (limits, strict focus). Content and scroll
-     events plus window content are read only for monitored apps and browsers (Shorts/Reels,
-     YouTube study mode, websites). -->
+<!-- Window changes tell the engine which app is in front (limits, strict focus) and which apps share
+     the screen (split screen, floating windows). Content and scroll events plus window content are
+     read only for monitored apps and browsers (Shorts/Reels, study modes, websites), and for the
+     installer/settings screens while protection is on. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
+    android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
     android:notificationTimeout="150" />

@@ -33,6 +33,30 @@
             android:launchMode="singleTask"
             android:taskAffinity="app.arcify.block" />
 
+        <!-- Optional home-screen hiding (spec F02). Disabled until the user opts in, so installing
+             Arcify never makes Android ask which home app to use. -->
+        <activity
+            android:name=".home.ProxyHomeActivity"
+            android:enabled="false"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:taskAffinity="app.arcify.home"
+            android:theme="@style/Theme.Arcify.Invisible">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".home.LauncherChooserActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="app.arcify.home" />
+
         <service
             android:name=".timer.FocusTimerService"
             android:exported="false"

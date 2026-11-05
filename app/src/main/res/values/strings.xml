@@ -168,4 +168,46 @@
     <string name="browsers_title">Browsers</string>
     <string name="browsers_desc">Arcify reads the address bar of these browsers. Chrome and Brave are set up by default.</string>
     <string name="browsers_add">Add browser</string>
+
+    <!-- Protection -->
+    <string name="section_protection">Protection</string>
+    <string name="section_protection_summary">Stop yourself from switching Arcify off or uninstalling it while you\'re committed. Optional home-screen hiding and emergency exit.</string>
+    <string name="protection_status_active">Protection is on right now</string>
+    <string name="protection_status_inactive">Protection isn\'t active right now</string>
+    <string name="protection_committed_note">A strict session or a locked rule is active, so protection can\'t be weakened until it ends.</string>
+    <string name="protection_level_title">When to protect</string>
+    <string name="protection_off">Off</string>
+    <string name="protection_during">While committed</string>
+    <string name="protection_always">Always</string>
+    <string name="protection_off_desc">Arcify never stops you from changing its settings or uninstalling it.</string>
+    <string name="protection_during_desc">During strict sessions, and while any limit or rule is locked, Arcify closes the screens that would switch it off or uninstall it.</string>
+    <string name="protection_always_desc">Arcify always closes the screens that would switch it off or uninstall it. You can lower this whenever nothing is committed.</string>
+    <string name="protection_guards_note">Covered: the uninstall dialog, Arcify\'s app info, accessibility and device admin pages in Settings, and its Play Store page. Apps in split screen or floating windows follow the same blocks. Early version: still needs checking on different phone brands.</string>
+    <string name="protection_locked_message">You can\'t weaken protection while a strict session or a locked rule is active.</string>
+    <string name="device_admin_title">Uninstall protection (device admin)</string>
+    <string name="device_admin_desc">Optional. While it\'s on, Android won\'t uninstall Arcify until you switch it off here first. Arcify never locks, wipes or manages your phone.</string>
+    <string name="turn_off">Turn off</string>
+    <string name="home_title">Hide the home screen during strict focus</string>
+    <string name="home_desc">Optional. Make Arcify your home app: pressing Home during strict focus returns to your session, and at all other times opens your normal launcher.</string>
+    <string name="home_launcher">Your normal launcher: %s</string>
+    <string name="home_launcher_none">not chosen</string>
+    <string name="home_choose">Choose</string>
+    <string name="home_choose_first">Choose your normal launcher first.</string>
+    <string name="home_toggle">Use Arcify as the home app</string>
+    <string name="home_toggle_desc">Turning this on lets you pick Arcify as the default home app in system settings.</string>
+    <string name="home_is_default">Arcify is your home app</string>
+    <string name="home_make_default">Set Arcify as the default home app</string>
+    <string name="launcher_chooser_title">Choose your launcher</string>
+    <string name="launcher_chooser_body">Arcify needs to know which launcher to open when you press Home outside strict focus.</string>
+    <string name="launcher_open_home_settings">Open default home app settings</string>
+    <string name="hard_exit_title">Emergency exit</string>
+    <string name="hard_exit_desc">Optional. Ends a strict session early after you type: \"%s\". Off by default, and can only be turned on when nothing is committed.</string>
+    <string name="hard_exit_button">Emergency exit</string>
+    <string name="hard_exit_dialog_title">End this strict session?</string>
+    <string name="hard_exit_dialog_body">Type this sentence exactly to end the session early:</string>
+    <string name="hard_exit_wrong">That doesn\'t match. Take a breath and check the sentence.</string>
+    <string name="hard_exit_confirm">End session</string>
+    <string name="block_protection_title">Protection is on</string>
+    <string name="block_protection_uninstall">Arcify can\'t be uninstalled while you\'re committed. Try again once your strict session and locked rules have ended.</string>
+    <string name="block_protection_settings">Arcify\'s settings are locked while you\'re committed. Try again once your strict session and locked rules have ended.</string>
 </resources>

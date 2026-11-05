@@ -74,6 +74,15 @@ class TimerController @Inject constructor(
         true
     }
 
+    /** Ends the session even if it is strict. Only for the emergency exit, after the phrase matched. */
+    suspend fun abandon(): Boolean = mutex.withLock {
+        val current = _timer.value ?: return@withLock false
+        val events = FocusTimer.abandon(current, now())
+        _timer.value = null
+        publish(events)
+        true
+    }
+
     private suspend fun publish(events: List<TimerEvent>) {
         for (event in events) {
             if (event is TimerEvent.SessionFinished) sessions.record(event.summary)

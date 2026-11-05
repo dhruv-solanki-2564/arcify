@@ -34,6 +34,7 @@ enum class BlockSection(val route: String, @param:StringRes val title: Int, @par
     SHORTS("block/shorts", R.string.section_shorts, R.string.section_shorts_summary),
     YOUTUBE("block/youtube", R.string.section_youtube, R.string.section_youtube_summary),
     WEBSITES("block/websites", R.string.section_websites, R.string.section_websites_summary),
+    PROTECTION("block/protection", R.string.section_protection, R.string.section_protection_summary),
 }
 
 @Composable
