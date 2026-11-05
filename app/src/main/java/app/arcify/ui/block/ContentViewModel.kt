@@ -7,6 +7,7 @@ import app.arcify.R
 import app.arcify.blocker.AppCatalog
 import app.arcify.blocker.InstalledApp
 import app.arcify.blocker.content.SnapshotRecorder
+import app.arcify.blocker.content.AdultDomains
 import app.arcify.core.content.AdultFilterSettings
 import app.arcify.core.content.IgSurface
 import app.arcify.core.content.MonitoredBrowser
@@ -49,6 +50,8 @@ data class ContentUiState(
     val websites: List<WebsiteRow> = emptyList(),
     val browsers: List<BrowserRow> = emptyList(),
     val adultFilter: AdultFilterSettings = AdultFilterSettings(),
+    /** Domains on the bundled adult list; [AdultDomains.NOT_LOADED] while loading, 0 if it failed. */
+    val adultListSize: Int = AdultDomains.NOT_LOADED,
     val recorderAvailable: Boolean = false,
     val recorderOn: Boolean = false,
     /** Null while the installed-app list is still loading. */
@@ -61,6 +64,13 @@ data class ContentUiState(
     fun isLocked(rule: ShortFormRule?): Boolean = rule != null && ShortFormPolicy.isStrict(rule, now)
 }
 
+private data class WebState(
+    val websites: List<WebsiteRule>,
+    val browsers: List<MonitoredBrowser>,
+    val adult: AdultFilterSettings,
+    val adultCount: Int,
+)
+
 /** Backs the Shorts & Reels, YouTube study mode and Websites & browsers screens (F04–F06). */
 @HiltViewModel
 class ContentViewModel @Inject constructor(
@@ -68,7 +78,12 @@ class ContentViewModel @Inject constructor(
     private val catalog: AppCatalog,
     private val recorder: SnapshotRecorder,
     private val clock: WallClock,
+    private val adultDomains: AdultDomains,
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch { adultDomains.load() }
+    }
 
     private val installed = flow<List<InstalledApp>?> {
         emit(null)
@@ -77,9 +92,12 @@ class ContentViewModel @Inject constructor(
 
     private val shortForm = combine(repository.observeShortFormRules(), repository.observeTodayCounts()) { r, c -> r to c }
     private val study = combine(repository.observeStudyChannels(), repository.studySettings) { c, s -> c to s }
-    private val web = combine(repository.observeWebsiteRules(), repository.observeBrowsers(), repository.adultFilter) { w, b, a ->
-        Triple(w, b, a)
-    }
+    private val web = combine(
+        repository.observeWebsiteRules(),
+        repository.observeBrowsers(),
+        repository.adultFilter,
+        adultDomains.count,
+    ) { w, b, a, n -> WebState(w, b, a, n) }
 
     private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
     val messages: SharedFlow<Int> = _messages.asSharedFlow()
@@ -88,7 +106,7 @@ class ContentViewModel @Inject constructor(
         combine(shortForm, study, web, repository.recorderEnabled, installed) { sf, st, wb, recorderOn, apps ->
             val (rules, counts) = sf
             val (channels, settings) = st
-            val (websites, browsers, adult) = wb
+            val (websites, browsers, adult, adultCount) = wb
             val labels = apps?.associate { it.packageName to it.label }.orEmpty()
             val now = clock.nowMs()
             ContentUiState(
@@ -102,6 +120,7 @@ class ContentViewModel @Inject constructor(
                 websites = websites.map { WebsiteRow(it, WebsitePolicy.isStrict(it, now)) },
                 browsers = browsers.map { BrowserRow(it, labels[it.packageName] ?: it.packageName) },
                 adultFilter = adult,
+                adultListSize = adultCount,
                 recorderAvailable = recorder.isAvailable,
                 recorderOn = recorderOn,
                 installed = apps,

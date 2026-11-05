@@ -173,6 +173,9 @@
     <string name="adult_exception_hint">Site to let through, e.g. example.com</string>
     <string name="adult_exception_refused">That isn\'t a site, or the filter is locked until midnight.</string>
     <string name="adult_lock_confirm_body">Until midnight the adult-site filter can\'t be switched off and no exceptions can be added.</string>
+    <string name="adult_list_loading">Loading the list…</string>
+    <string name="adult_list_ready">%,d sites on the list.</string>
+    <string name="adult_list_failed">The list couldn\'t be loaded, so nothing is blocked by it.</string>
     <string name="adult_credit">List from StevenBlack/hosts (MIT licence).</string>
 
     <!-- Protection -->
@@ -310,6 +313,8 @@
     <string name="wake_once">Once</string>
     <string name="wake_snoozes">Snoozes</string>
     <string name="wake_focus_length">Focus session</string>
+    <string name="wake_rings_in">Alarm set: rings in %s</string>
+    <string name="wake_next">Next: %s</string>
     <string name="wake_item_detail">%2$d × %1$s snooze · %3$s focus</string>
 
     <!-- Notification batching (spec F13) -->

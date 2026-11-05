@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.arcify.R
+import app.arcify.blocker.content.AdultDomains
 import app.arcify.core.content.WebsiteRuleKind
 
 /** Browser study mode, website rules and monitored browsers (F06). */
@@ -108,6 +109,17 @@ fun WebsitesRoute(viewModel: ContentViewModel = hiltViewModel()) {
             )
         }
         if (ui.adultFilter.enabled) {
+            item {
+                Text(
+                    when (ui.adultListSize) {
+                        AdultDomains.NOT_LOADED -> stringResource(R.string.adult_list_loading)
+                        0 -> stringResource(R.string.adult_list_failed)
+                        else -> stringResource(R.string.adult_list_ready, ui.adultListSize)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (ui.adultListSize == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             item {
                 LockControl(
                     locked = ui.adultFilter.isStrict(ui.now),

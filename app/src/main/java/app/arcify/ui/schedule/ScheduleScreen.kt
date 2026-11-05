@@ -1,5 +1,7 @@
 package app.arcify.ui.schedule
 
+import android.text.format.DateFormat
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,12 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.arcify.R
 import app.arcify.core.alarm.WakeAlarm
+import app.arcify.core.alarm.WakeAlarmRules
 import app.arcify.core.schedule.OccurrenceStatus
 import app.arcify.core.schedule.Repeat
 import app.arcify.core.schedule.ScheduleRules
@@ -46,7 +50,10 @@ import app.arcify.core.util.formatShortDuration
 import app.arcify.ui.block.SectionTitle
 import app.arcify.ui.block.ToggleRow
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -61,6 +68,7 @@ private data class Editing(val session: ScheduledSession?)
 fun ScheduleRoute(viewModel: ScheduleViewModel = hiltViewModel()) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val alarms by viewModel.alarms.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var editing by remember { mutableStateOf<Editing?>(null) }
     var editingAlarm by remember { mutableStateOf<AlarmEditing?>(null) }
     val dayFormat = remember { DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()) }
@@ -125,6 +133,7 @@ fun ScheduleRoute(viewModel: ScheduleViewModel = hiltViewModel()) {
                             ),
                             style = MaterialTheme.typography.bodySmall,
                         )
+                        nextRingText(alarm)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     }
                     Switch(checked = alarm.enabled, onCheckedChange = { viewModel.saveAlarm(alarm.copy(enabled = it)) })
                 }
@@ -206,6 +215,12 @@ fun ScheduleRoute(viewModel: ScheduleViewModel = hiltViewModel()) {
             onSave = {
                 viewModel.saveAlarm(it)
                 editingAlarm = null
+                val now = System.currentTimeMillis()
+                WakeAlarmRules.nextTrigger(it, now, ZoneId.systemDefault())?.let { at ->
+                    // Rounded up, so an alarm 90 s away reads "2 min", never "1 min".
+                    val inText = formatShortDuration(at - now + 59_999)
+                    Toast.makeText(context, context.getString(R.string.wake_rings_in, inText), Toast.LENGTH_LONG).show()
+                }
             },
             onDelete = edit.alarm?.let { a ->
                 {
@@ -242,7 +257,7 @@ private fun WakeAlarmDialog(
     val time = rememberTimePickerState(
         initialHour = (existing?.minuteOfDay ?: (7 * 60)) / 60,
         initialMinute = (existing?.minuteOfDay ?: 0) % 60,
-        is24Hour = true,
+        is24Hour = DateFormat.is24HourFormat(LocalContext.current),
     )
     var days by remember { mutableIntStateOf(existing?.daysMask ?: 0) }
     var snoozes by remember { mutableIntStateOf(existing?.snoozesAllowed ?: WakeAlarm.DEFAULT_SNOOZES) }
@@ -312,7 +327,22 @@ private fun WakeAlarmDialog(
     )
 }
 
-private fun timeText(minuteOfDay: Int): String = String.format(Locale.ROOT, "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60)
+/** A time of day in the phone's 12- or 24-hour format. */
+@Composable
+private fun timeText(minuteOfDay: Int): String {
+    val pattern = if (DateFormat.is24HourFormat(LocalContext.current)) "HH:mm" else "h:mm a"
+    return LocalTime.of(minuteOfDay / 60, minuteOfDay % 60).format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+}
+
+/** "Next: Fri 7:00 AM", or null when the alarm is off. */
+@Composable
+private fun nextRingText(alarm: WakeAlarm): String? {
+    val zone = ZoneId.systemDefault()
+    val at = WakeAlarmRules.nextTrigger(alarm, System.currentTimeMillis(), zone) ?: return null
+    val time = Instant.ofEpochMilli(at).atZone(zone)
+    val day = time.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    return stringResource(R.string.wake_next, day + " " + timeText(time.hour * 60 + time.minute))
+}
 
 private fun OccurrenceStatus.label(): Int = when (this) {
     OccurrenceStatus.UPCOMING -> R.string.status_upcoming
@@ -336,7 +366,7 @@ private fun SessionDialog(
     val time = rememberTimePickerState(
         initialHour = (existing?.startMinute ?: (18 * 60)) / 60,
         initialMinute = (existing?.startMinute ?: 0) % 60,
-        is24Hour = true,
+        is24Hour = DateFormat.is24HourFormat(LocalContext.current),
     )
     var duration by remember { mutableIntStateOf(existing?.durationMin ?: 50) }
     var pomodoro by remember { mutableStateOf(existing?.pomodoro ?: false) }
