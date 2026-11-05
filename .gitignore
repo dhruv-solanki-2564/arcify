@@ -1,0 +1,27 @@
+# Gradle / Android
+.gradle/
+build/
+/local.properties
+/captures/
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+.kotlin/
+
+# Signing — never commit
+*.jks
+*.keystore
+keystore.properties
+
+# Third-party binaries & RE output — never commit
+*.apk
+*.apks
+*.xapk
+*.aab
+/re/
+/decompiled/
+
+# OS
+.DS_Store
+Thumbs.db
