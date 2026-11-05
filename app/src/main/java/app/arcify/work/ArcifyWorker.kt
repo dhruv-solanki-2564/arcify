@@ -29,6 +29,8 @@ interface AppEntryPoint {
     fun insightsRepository(): app.arcify.core.data.InsightsRepository
     fun timerSettings(): app.arcify.core.data.TimerSettingsRepository
     fun timerController(): app.arcify.core.timer.TimerController
+    fun wakeAlarmRepository(): app.arcify.core.data.WakeAlarmRepository
+    fun batchingRepository(): app.arcify.core.data.BatchingRepository
 }
 
 fun Context.appEntryPoint(): AppEntryPoint = EntryPointAccessors.fromApplication(applicationContext, AppEntryPoint::class.java)

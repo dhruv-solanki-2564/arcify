@@ -10,8 +10,10 @@ import app.arcify.core.data.AppLimitDao
 import app.arcify.core.data.ArcifyDatabase
 import app.arcify.core.data.ContentDao
 import app.arcify.core.data.FocusSessionDao
+import app.arcify.core.data.HeldNotificationDao
 import app.arcify.core.data.InsightsDao
 import app.arcify.core.data.ScheduleDao
+import app.arcify.core.data.WakeAlarmDao
 import app.arcify.core.data.StrictAllowedAppDao
 import app.arcify.core.data.TagDao
 import app.arcify.core.timer.WallClock
@@ -51,6 +53,12 @@ object CoreModule {
 
     @Provides
     fun scheduleDao(db: ArcifyDatabase): ScheduleDao = db.scheduleDao()
+
+    @Provides
+    fun wakeAlarmDao(db: ArcifyDatabase): WakeAlarmDao = db.wakeAlarmDao()
+
+    @Provides
+    fun heldNotificationDao(db: ArcifyDatabase): HeldNotificationDao = db.heldNotificationDao()
 
     @Provides
     @Singleton

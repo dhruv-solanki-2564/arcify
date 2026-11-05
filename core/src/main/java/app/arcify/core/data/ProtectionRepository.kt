@@ -37,14 +37,19 @@ class CommitmentTracker @Inject constructor(
         }
     }
 
+    private val contentRules = combine(
+        content.observeShortFormRules(),
+        content.observeWebsiteRules(),
+        content.adultFilter,
+    ) { shortForm, websites, adult -> Triple(shortForm, websites, adult) }
+
     val commitments: Flow<Commitments> = combine(
         timer.timer,
         blocks.observeLimits(),
-        content.observeShortFormRules(),
-        content.observeWebsiteRules(),
+        contentRules,
         ticks,
-    ) { t, limits, shortForm, websites, _ ->
-        ProtectionRules.commitments(t, limits, shortForm, websites, clock.nowMs())
+    ) { t, limits, (shortForm, websites, adult), _ ->
+        ProtectionRules.commitments(t, limits, shortForm, websites, clock.nowMs(), adult)
     }.distinctUntilChanged()
 
     suspend fun current(): Commitments = commitments.first()

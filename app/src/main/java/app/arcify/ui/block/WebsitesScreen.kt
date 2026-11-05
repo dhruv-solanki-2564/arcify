@@ -39,6 +39,8 @@ fun WebsitesRoute(viewModel: ContentViewModel = hiltViewModel()) {
     var input by rememberSaveable { mutableStateOf("") }
     var pickingBrowser by remember { mutableStateOf(false) }
     var confirmLock by remember { mutableStateOf<String?>(null) }
+    var confirmAdultLock by remember { mutableStateOf(false) }
+    var adultInput by rememberSaveable { mutableStateOf("") }
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -97,6 +99,50 @@ fun WebsitesRoute(viewModel: ContentViewModel = hiltViewModel()) {
         }
 
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+        item {
+            ToggleRow(
+                title = stringResource(R.string.adult_title),
+                description = stringResource(R.string.adult_desc),
+                checked = ui.adultFilter.enabled,
+                onCheckedChange = viewModel::setAdultFilter,
+            )
+        }
+        if (ui.adultFilter.enabled) {
+            item {
+                LockControl(
+                    locked = ui.adultFilter.isStrict(ui.now),
+                    onLock = { confirmAdultLock = true },
+                )
+            }
+            item { Text(stringResource(R.string.adult_exceptions), style = MaterialTheme.typography.titleSmall) }
+            if (ui.adultFilter.exceptions.isEmpty()) {
+                item { Text(stringResource(R.string.adult_exceptions_empty), style = MaterialTheme.typography.bodySmall) }
+            }
+            items(ui.adultFilter.exceptions.sorted(), key = { "adult:$it" }) { domain ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(domain, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { viewModel.removeAdultException(domain) }) { Text(stringResource(R.string.remove)) }
+                }
+            }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = adultInput,
+                        onValueChange = { adultInput = it },
+                        label = { Text(stringResource(R.string.adult_exception_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(onClick = {
+                        viewModel.addAdultException(adultInput)
+                        adultInput = ""
+                    }) { Text(stringResource(R.string.add)) }
+                }
+            }
+        }
+        item { Text(stringResource(R.string.adult_credit), style = MaterialTheme.typography.bodySmall) }
+
+        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionTitle(R.string.browsers_title) }
         item { Text(stringResource(R.string.browsers_desc), style = MaterialTheme.typography.bodySmall) }
         items(ui.browsers, key = { it.browser.packageName }) { row ->
@@ -123,6 +169,17 @@ fun WebsitesRoute(viewModel: ContentViewModel = hiltViewModel()) {
                 viewModel.addBrowser(app.packageName)
             },
             onDismiss = { pickingBrowser = false },
+        )
+    }
+
+    if (confirmAdultLock) {
+        ConfirmLockDialog(
+            body = stringResource(R.string.adult_lock_confirm_body),
+            onConfirm = {
+                confirmAdultLock = false
+                viewModel.lockAdultFilter()
+            },
+            onDismiss = { confirmAdultLock = false },
         )
     }
 

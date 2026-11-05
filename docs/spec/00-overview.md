@@ -16,8 +16,8 @@ Sources: the public Play Store listing (retrieved 2026-11-05) and static analysi
 | F10 | Nudges / motivation | specified | [F10](F10-nudges.md) |
 | F11 | Multiplayer groups, leagues, reactions (deferred to M8) | specified (deferred) | [F11](F11-online.md) |
 | F12 | Onboarding, permissions, settings | specified | [F12](F12-onboarding-settings.md) |
-| F13 | *Candidate:* notification batching (in the original, not on its listing) | proposed, optional | [F10](F10-nudges.md) |
-| F14 | *Candidate:* study wake-up alarm (in the original) | proposed, optional | [F10](F10-nudges.md) |
+| F13 | Notification batching (in the original, not on its listing) | built in M6b | [F10](F10-nudges.md) |
+| F14 | Study wake-up alarm (in the original) | built in M6b | [F10](F10-nudges.md) |
 
 Cross-cutting: [blocking engine](blocking-engine.md) · [permissions](permissions.md) · [data model](data-model.md) · [screen map](screen-map.md)
 

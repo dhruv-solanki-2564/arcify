@@ -4,8 +4,12 @@
 > This file is the single source of truth for "where did we leave off".
 
 ## 1. Now
-- **Current milestone:** M2–M6 merged into `main`, plus the phone-test fixes (`fix/device-round1`, 3 rounds; the user confirmed on 2026-11-05 that strict focus with allowed apps, Instagram per-surface rules incl. DM-only reels, and uninstall protection all work on a realme RMX3840 / Android 16) → **M6b next**: F13 notification batching, F14 study wake alarm, and the adult-site list (StevenBlack, MIT; the user OK'd downloading it on 2026-11-05).
-- **Next step:** branch `m6b/batching-alarm-adult` from `main` and build F13, F14 and the adult list.
+- **Current milestone:** M6b code done on branch `m6b/batching-alarm-adult` (PR open, not merged): adult-site filter (StevenBlack, MIT), F13 notification batching, F14 study wake-up alarm. 131 unit tests pass and the debug APK builds. **Not yet installed on the phone** (it wasn't connected).
+- **Next step:** install the M6b APK and check it on the phone:
+  1. **Adult filter:** turn it on under Block → Websites & browsers and open a listed site in Chrome; it should be blocked. Add an exception and check it opens. Lock for today: the switch can't be turned off.
+  2. **Wake alarm:** add one 2 minutes ahead in Schedule. Lock the phone. It should ring over the lock screen. Check snooze (count goes down), the sums, and Start focus.
+  3. **Batching:** grant notification access, add an app (e.g. WhatsApp), choose 30 min. Its notifications should disappear and come back as one summary, or with "Deliver now". Calls must still ring.
+  Then merge the PR and start M7 (signed release APK + GitHub Actions).
 - **Still to check on the phone later:** split screen, home hiding (proxy launcher), schedule alarms after reboot, the widget, Insights over several days, Snapchat/Facebook detectors.
 - **Old checklist (pre-device, kept for reference; mostly done) — when a phone is connected (M4b, calibration):**
   1. Install the debug APK, grant Accessibility + Usage access.
@@ -27,7 +31,6 @@
   3. Block tab: grant Accessibility + Usage access, add a 15-minute limit, use the app until blocked, try "Lock for today".
   4. Strict Pomodoro: open a non-allowed app, check it's blocked; press Home, check the focus screen returns.
   5. Chrome: open youtube.com/shorts/…, check the count appears in Block → Shorts & Reels; add a "Limit 3" rule and swipe past 3; add a blocked site.
-- **Blockers:** none. Decide F13 (notification batching) / F14 (wake alarm) scope with the user before M6.
 - **For M4:** record real Instagram/YouTube/Chrome/Brave accessibility node trees on a device (needed for IG surfaces + address-bar IDs; the original has no IG-surface logic to learn from).
 - **GitHub:** https://github.com/dhruv-solanki-2564/arcify (public, `main`)
 - **APK under study:** `Regain-Study-Timer-for-Focus_73.6.2089_apkcube.apks` (v73.6.2089). It's a split bundle: `base.apk` (67.7 MB) + `split_config.arm64_v8a` + density splits. Copied to `arcify-re\apk\`.
@@ -110,7 +113,13 @@
     - Insights and Schedule tabs; goal on the Focus screen.
   - [x] 100 unit tests passing; `assembleDebug` OK (14.8 MB)
   - [ ] Device checks (see "Now")
-- [ ] **M6b** F13 notification batching, F14 study wake alarm, adult-site list
+- [ ] **M6b** F13 notification batching, F14 study wake alarm, adult-site list: code done, PR open, device check pending
+  - [x] Adult filter: `tools/build_adult_list.js`, `adult_domains.txt.gz` asset (64,297 domains), `AdultFilter` rules (parent-domain match, exceptions, lock for today), `AdultDomains` loader, checked first in `ContentGuard.inspectBrowser`, UI section on the Websites screen, counts as a commitment
+  - [x] Room v5 (auto-migration): `wake_alarm`, `held_notification`; `WakeAlarmRepository`, `BatchingRepository`
+  - [x] F14: `WakeAlarmRules`, `WakeTask`; `WakeAlarms` (setAlarmClock), `WakeAlarmReceiver`, `WakeAlarmService` (alarm-stream sound + vibration, 10 min cap), `WakeAlarmActivity` (lock screen; focus / snooze / sums); Schedule-tab section and dialog
+  - [x] F13: `BatchingRules`, `ArcifyNotificationListener`, `BatchDelivery` + receiver; Block → Notification batching screen
+  - [x] 131 unit tests passing; `assembleDebug` OK (15.7 MB)
+  - [ ] Installed and checked on the phone
 - [ ] **M7 APK delivery** (signed release, GitHub Actions, Releases)
 - [ ] **M8 (later) Online features** (F11, self-hostable backend behind `SyncRepository`)
 
@@ -179,11 +188,15 @@
 | 2026-11-05 | M6 split: insights/schedule/goal/streaks/nudges/widget first; F13, F14 and the adult list as M6b | Keeps each PR reviewable |
 | 2026-11-05 | Streaks computed from stored history instead of a `StreakDay` table | No duplicated state; always consistent with the data |
 | 2026-11-05 | Charts with plain Compose layouts instead of Vico; WorkManager + Glance added | Fewer dependencies; WorkManager is in the agreed stack |
+| 2026-11-05 | Adult list is checked before website rules and study mode; exceptions can't be added while locked, but can always be removed | Removing an exception only makes it stricter |
+| 2026-11-05 | Batching never holds calls, alarms, reminders, navigation, transport, ongoing or Arcify's own notifications; switching batching off delivers what's held | Batching must never hide something urgent or lose a message |
+| 2026-11-05 | Batches are delivered on fixed slots from local midnight (every 30 min / 1 / 2 / 3 h) with an inexact, idle-allowed alarm | Predictable times; no exact-alarm need for a non-urgent summary |
+| 2026-11-05 | Wake alarm: only the earliest alarm is armed (setAlarmClock); off only via focus, limited snooze, or three two-digit sums; Back disabled; stops after 10 min | One armed alarm keeps re-arming simple; the 10-min cap avoids ringing forever if the phone is away |
 | 2026-11-05 | Receivers, worker and widget get dependencies through a Hilt `@EntryPoint` | `@AndroidEntryPoint` receivers need `super.onReceive` on an abstract method; entry points avoid that |
 
 ## 4. Environment
 - Repo: `C:\Users\Admin\Projects\arcify` · RE workspace: `C:\Users\Admin\Projects\arcify-re\` (apk/, evidence/, ledger.md)
-- JDK for Gradle: `C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` (global JAVA_HOME points to a JRE 11 — override for builds)
+- JDK for Gradle: `C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` (global JAVA_HOME points to a JRE 11 — override for builds; with `cmd /c` use `set JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot&& …`, with no space before `&&`)
 - Android SDK: `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools 23.0.0 in `cmdline-tools\latest`). The new CLI uses **slash** package names: `sdkmanager platforms/android-36 build-tools/36.0.0` (semicolon names silently do nothing). Run it through `cmd /c` from PowerShell.
 - Machine: 7.7 GB RAM, 8 cores. Keep JVM heaps ≤3 GB (JADX with `-Xmx6g` on the whole APK stalled at 32%). Decompile per DEX instead.
 - REA's Android tools need `REA_JADX_MCP_JAR` (jadx-headless-mcp 0.7.1) and apktool; neither is configured, so use the JADX CLI.
@@ -225,3 +238,4 @@
 - 2026-11-05 — Session 1 (cont.): PR #4 merged (d8eb4b2). M5 on `m5/protection`: protection levels + commitments, protection detector, device admin, window checks, proxy home + chooser, emergency exit, Protection screen; 88 tests passing; APK builds. Not yet tried on a device.
 - 2026-11-05 — Session 1 (cont.): PR #5 merged (5d6e47b). The user chose F13 + F14 + the StevenBlack list (→ M6b). M6 on `m6/insights-schedule`: usage history, insights tab, streaks, schedule + alarms, daily goal, nudges, Today widget; 100 tests passing; APK builds.
 - 2026-11-05 — Session 1 (cont.): first phone tests on realme RMX3840 / Android 16. Three fix rounds on `fix/device-round1` (687dfd9, 9964477, 92621e1) driven by logcat, `uiautomator` dumps and recordings; 115 tests passing; the user confirmed everything tested works. Merged PR #6 and the fix PR into `main`. Next: M6b.
+- 2026-11-05 — Session 1 (cont.): M6b on `m6b/batching-alarm-adult`: adult-site filter (StevenBlack list bundled), F14 wake-up alarm, F13 notification batching, Room v5; 131 tests passing; APK builds. Not yet on the phone.

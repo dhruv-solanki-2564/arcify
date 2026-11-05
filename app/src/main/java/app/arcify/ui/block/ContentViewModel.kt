@@ -7,6 +7,7 @@ import app.arcify.R
 import app.arcify.blocker.AppCatalog
 import app.arcify.blocker.InstalledApp
 import app.arcify.blocker.content.SnapshotRecorder
+import app.arcify.core.content.AdultFilterSettings
 import app.arcify.core.content.IgSurface
 import app.arcify.core.content.MonitoredBrowser
 import app.arcify.core.content.Platform
@@ -47,6 +48,7 @@ data class ContentUiState(
     val settings: StudyModeSettings = StudyModeSettings(),
     val websites: List<WebsiteRow> = emptyList(),
     val browsers: List<BrowserRow> = emptyList(),
+    val adultFilter: AdultFilterSettings = AdultFilterSettings(),
     val recorderAvailable: Boolean = false,
     val recorderOn: Boolean = false,
     /** Null while the installed-app list is still loading. */
@@ -75,7 +77,9 @@ class ContentViewModel @Inject constructor(
 
     private val shortForm = combine(repository.observeShortFormRules(), repository.observeTodayCounts()) { r, c -> r to c }
     private val study = combine(repository.observeStudyChannels(), repository.studySettings) { c, s -> c to s }
-    private val web = combine(repository.observeWebsiteRules(), repository.observeBrowsers()) { w, b -> w to b }
+    private val web = combine(repository.observeWebsiteRules(), repository.observeBrowsers(), repository.adultFilter) { w, b, a ->
+        Triple(w, b, a)
+    }
 
     private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
     val messages: SharedFlow<Int> = _messages.asSharedFlow()
@@ -84,7 +88,7 @@ class ContentViewModel @Inject constructor(
         combine(shortForm, study, web, repository.recorderEnabled, installed) { sf, st, wb, recorderOn, apps ->
             val (rules, counts) = sf
             val (channels, settings) = st
-            val (websites, browsers) = wb
+            val (websites, browsers, adult) = wb
             val labels = apps?.associate { it.packageName to it.label }.orEmpty()
             val now = clock.nowMs()
             ContentUiState(
@@ -97,6 +101,7 @@ class ContentViewModel @Inject constructor(
                 settings = settings,
                 websites = websites.map { WebsiteRow(it, WebsitePolicy.isStrict(it, now)) },
                 browsers = browsers.map { BrowserRow(it, labels[it.packageName] ?: it.packageName) },
+                adultFilter = adult,
                 recorderAvailable = recorder.isAvailable,
                 recorderOn = recorderOn,
                 installed = apps,
@@ -150,6 +155,16 @@ class ContentViewModel @Inject constructor(
     fun removeBrowser(packageName: String) = viewModelScope.launch { repository.removeBrowser(packageName) }
 
     fun resetBrowsers() = viewModelScope.launch { repository.resetBrowsers() }
+
+    // ---- Adult-site filter ----
+
+    fun setAdultFilter(enabled: Boolean) = launchChecked { repository.setAdultFilterEnabled(enabled) }
+
+    fun lockAdultFilter() = viewModelScope.launch { repository.lockAdultFilterForToday() }
+
+    fun addAdultException(input: String) = launchChecked(R.string.adult_exception_refused) { repository.addAdultException(input) }
+
+    fun removeAdultException(domain: String) = viewModelScope.launch { repository.removeAdultException(domain) }
 
     private fun launchChecked(@StringRes failure: Int = R.string.limit_locked_message, action: suspend () -> Boolean) =
         viewModelScope.launch {

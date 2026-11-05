@@ -10,6 +10,10 @@
     <uses-permission
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
+    <!-- Study wake-up alarm (spec F14): rings on the alarm stream and shows over the lock screen. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:name=".ArcifyApp"
@@ -79,6 +83,37 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- Study wake-up alarm (spec F14). -->
+        <receiver
+            android:name=".alarm.WakeAlarmReceiver"
+            android:exported="false" />
+        <service
+            android:name=".alarm.WakeAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+        <activity
+            android:name=".alarm.WakeAlarmActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity="app.arcify.alarm"
+            android:turnScreenOn="true" />
+
+        <!-- Notification batching (spec F13). -->
+        <service
+            android:name=".notify.ArcifyNotificationListener"
+            android:exported="true"
+            android:label="@string/listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".notify.BatchDeliveryReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".widget.TodayWidgetReceiver"

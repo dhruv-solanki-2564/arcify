@@ -4,6 +4,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import app.arcify.core.content.AdultFilter
+import app.arcify.core.content.AdultFilterSettings
 import app.arcify.core.content.ContentDefaults
 import app.arcify.core.content.IgSurface
 import app.arcify.core.content.MonitoredBrowser
@@ -183,6 +187,45 @@ class ContentRepository @Inject constructor(
 
     suspend fun setBrowserStudyMode(enabled: Boolean) = store.edit { it[BROWSER_STUDY] = enabled }
 
+    // ---- Adult-site filter (spec F06) ----
+
+    val adultFilter: Flow<AdultFilterSettings> = store.data.map { prefs ->
+        AdultFilterSettings(
+            enabled = prefs[ADULT_ENABLED] ?: false,
+            strictUntil = prefs[ADULT_STRICT_UNTIL],
+            exceptions = prefs[ADULT_EXCEPTIONS].orEmpty(),
+        )
+    }
+
+    /** Switching it on always works; switching it off is refused while it is locked. */
+    suspend fun setAdultFilterEnabled(enabled: Boolean): Boolean {
+        if (!enabled && !AdultFilter.canLoosen(adultFilter.first(), clock.nowMs())) return false
+        store.edit { it[ADULT_ENABLED] = enabled }
+        return true
+    }
+
+    /** Turns the filter on and locks it until midnight. */
+    suspend fun lockAdultFilterForToday() {
+        val end = endOfToday()
+        store.edit { prefs ->
+            prefs[ADULT_ENABLED] = true
+            prefs[ADULT_STRICT_UNTIL] = maxOf(prefs[ADULT_STRICT_UNTIL] ?: Long.MIN_VALUE, end)
+        }
+    }
+
+    /** Lets a site through. Refused for input that isn't a site, or while the filter is locked. */
+    suspend fun addAdultException(input: String): Boolean {
+        val domain = AdultFilter.normalizeException(input) ?: return false
+        if (!AdultFilter.canLoosen(adultFilter.first(), clock.nowMs())) return false
+        store.edit { it[ADULT_EXCEPTIONS] = it[ADULT_EXCEPTIONS].orEmpty() + domain }
+        return true
+    }
+
+    /** Removing an exception makes the filter stricter, so it is always allowed. */
+    suspend fun removeAdultException(domain: String) {
+        store.edit { it[ADULT_EXCEPTIONS] = it[ADULT_EXCEPTIONS].orEmpty() - domain }
+    }
+
     /** Debug-only screen recorder used to calibrate detectors on a real phone. */
     val recorderEnabled: Flow<Boolean> = store.data.map { it[RECORDER] ?: false }
 
@@ -207,5 +250,8 @@ class ContentRepository @Inject constructor(
         val YOUTUBE_STUDY = booleanPreferencesKey("youtube_study_mode")
         val BROWSER_STUDY = booleanPreferencesKey("browser_study_mode")
         val RECORDER = booleanPreferencesKey("debug_snapshot_recorder")
+        val ADULT_ENABLED = booleanPreferencesKey("adult_filter_enabled")
+        val ADULT_STRICT_UNTIL = longPreferencesKey("adult_filter_strict_until")
+        val ADULT_EXCEPTIONS = stringSetPreferencesKey("adult_filter_exceptions")
     }
 }

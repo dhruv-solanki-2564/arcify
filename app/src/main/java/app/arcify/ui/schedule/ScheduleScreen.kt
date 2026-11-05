@@ -19,6 +19,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.arcify.R
+import app.arcify.core.alarm.WakeAlarm
 import app.arcify.core.schedule.OccurrenceStatus
 import app.arcify.core.schedule.Repeat
 import app.arcify.core.schedule.ScheduleRules
@@ -58,7 +60,9 @@ private data class Editing(val session: ScheduledSession?)
 @Composable
 fun ScheduleRoute(viewModel: ScheduleViewModel = hiltViewModel()) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val alarms by viewModel.alarms.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Editing?>(null) }
+    var editingAlarm by remember { mutableStateOf<AlarmEditing?>(null) }
     val dayFormat = remember { DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()) }
 
     LazyColumn(
@@ -85,6 +89,46 @@ fun ScheduleRoute(viewModel: ScheduleViewModel = hiltViewModel()) {
                 checked = ui.nudgesEnabled,
                 onCheckedChange = viewModel::setNudges,
             )
+        }
+
+        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.wake_section), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Button(onClick = { editingAlarm = AlarmEditing(null) }) { Text(stringResource(R.string.wake_add)) }
+            }
+        }
+        item { Text(stringResource(R.string.wake_section_desc), style = MaterialTheme.typography.bodySmall) }
+        if (alarms.isEmpty()) {
+            item { Text(stringResource(R.string.wake_none), style = MaterialTheme.typography.bodySmall) }
+        }
+        alarms.forEach { alarm ->
+            item(key = "alarm/${alarm.id}") {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { editingAlarm = AlarmEditing(alarm) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            timeText(alarm.minuteOfDay) + " · " + daysText(alarm.daysMask, stringResource(R.string.wake_once)),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            stringResource(
+                                R.string.wake_item_detail,
+                                formatShortDuration(alarm.snoozeMinutes * 60_000L),
+                                alarm.snoozesAllowed,
+                                formatShortDuration(alarm.focusMinutes * 60_000L),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Switch(checked = alarm.enabled, onCheckedChange = { viewModel.saveAlarm(alarm.copy(enabled = it)) })
+                }
+            }
         }
 
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
@@ -155,6 +199,117 @@ fun ScheduleRoute(viewModel: ScheduleViewModel = hiltViewModel()) {
             onDismiss = { editing = null },
         )
     }
+
+    editingAlarm?.let { edit ->
+        WakeAlarmDialog(
+            existing = edit.alarm,
+            onSave = {
+                viewModel.saveAlarm(it)
+                editingAlarm = null
+            },
+            onDelete = edit.alarm?.let { a ->
+                {
+                    viewModel.deleteAlarm(a.id)
+                    editingAlarm = null
+                }
+            },
+            onDismiss = { editingAlarm = null },
+        )
+    }
+}
+
+/** A pending wake-alarm edit: a new alarm, or an existing one. */
+private data class AlarmEditing(val alarm: WakeAlarm?)
+
+private fun daysText(mask: Int, once: String): String {
+    if (mask == 0) return once
+    return DayOfWeek.entries
+        .filter { mask and ScheduleRules.dayBit(it) != 0 }
+        .joinToString(" ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+}
+
+private val SnoozeLengthsMin = listOf(3, 5, 10)
+private val FocusLengthsMin = listOf(25, 50, 90)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun WakeAlarmDialog(
+    existing: WakeAlarm?,
+    onSave: (WakeAlarm) -> Unit,
+    onDelete: (() -> Unit)?,
+    onDismiss: () -> Unit,
+) {
+    val time = rememberTimePickerState(
+        initialHour = (existing?.minuteOfDay ?: (7 * 60)) / 60,
+        initialMinute = (existing?.minuteOfDay ?: 0) % 60,
+        is24Hour = true,
+    )
+    var days by remember { mutableIntStateOf(existing?.daysMask ?: 0) }
+    var snoozes by remember { mutableIntStateOf(existing?.snoozesAllowed ?: WakeAlarm.DEFAULT_SNOOZES) }
+    var snoozeMin by remember { mutableIntStateOf(existing?.snoozeMinutes ?: WakeAlarm.DEFAULT_SNOOZE_MIN) }
+    var focusMin by remember { mutableIntStateOf(existing?.focusMinutes ?: WakeAlarm.DEFAULT_FOCUS_MIN) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (existing == null) R.string.wake_new else R.string.wake_edit)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TimePicker(state = time)
+                Text(stringResource(R.string.wake_days), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DayOfWeek.entries.forEach { d ->
+                        val bit = ScheduleRules.dayBit(d)
+                        FilterChip(
+                            selected = days and bit != 0,
+                            onClick = { days = days xor bit },
+                            label = { Text(d.getDisplayName(TextStyle.SHORT, Locale.getDefault())) },
+                        )
+                    }
+                }
+                Text(stringResource(R.string.wake_snoozes), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    (0..WakeAlarm.MAX_SNOOZES).forEach { n ->
+                        FilterChip(selected = snoozes == n, onClick = { snoozes = n }, label = { Text(n.toString()) })
+                    }
+                }
+                if (snoozes > 0) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SnoozeLengthsMin.forEach { m ->
+                            FilterChip(selected = snoozeMin == m, onClick = { snoozeMin = m }, label = { Text(formatShortDuration(m * 60_000L)) })
+                        }
+                    }
+                }
+                Text(stringResource(R.string.wake_focus_length), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FocusLengthsMin.forEach { m ->
+                        FilterChip(selected = focusMin == m, onClick = { focusMin = m }, label = { Text(formatShortDuration(m * 60_000L)) })
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(
+                    WakeAlarm(
+                        id = existing?.id ?: 0,
+                        minuteOfDay = time.hour * 60 + time.minute,
+                        daysMask = days,
+                        // Saving re-enables an alarm that already rang once.
+                        enabled = true,
+                        snoozesAllowed = snoozes,
+                        snoozeMinutes = snoozeMin,
+                        focusMinutes = focusMin,
+                    ),
+                )
+            }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            Row {
+                if (onDelete != null) TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            }
+        },
+    )
 }
 
 private fun timeText(minuteOfDay: Int): String = String.format(Locale.ROOT, "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60)
